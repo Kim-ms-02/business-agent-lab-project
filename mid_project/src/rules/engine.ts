@@ -68,7 +68,7 @@ export function evaluate(input: EngineInput, today: string): EngineResult {
       hits.push({
         ruleId: "jeonseRatio",
         grade,
-        reason: `보증금이 매매시세의 ${pct(ratio)}입니다. ${pct(line)} 이상이면 ${grade}으로 봅니다. 집값이 떨어지면 보증금을 돌려받기 어려울 수 있습니다.`,
+        reason: `보증금이 매매시세의 ${pct(ratio)}입니다. ${pct(line)} 이상이면 ${grade === "위험" ? "위험으로" : "주의로"} 봅니다. 집값이 떨어지면 보증금을 돌려받기 어려울 수 있습니다.`,
         values: { deposit, marketPrice, ratio, threshold: line },
         source: JEONSE_RATIO.source,
       });
