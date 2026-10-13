@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { FormPrefill } from "@/agent/extract";
 import {
   HOUSE_TYPE_LABELS,
   type Estimate,
@@ -14,13 +15,20 @@ import styles from "./RiskForm.module.css";
 const SIDOS = [...new Set(REGIONS.map((r) => r.sido))];
 
 // onEstimate receives null when a lookup yields no estimate, so a stale estimate can be cleared.
-export default function MarketPriceLookup({ onEstimate }: { onEstimate: (manwon: number | null) => void }) {
-  const [type, setType] = useState<HouseType>("apartment");
-  const [sido, setSido] = useState("");
-  const [lawdCd, setLawdCd] = useState("");
-  const [umdNm, setUmdNm] = useState("");
-  const [jibun, setJibun] = useState("");
-  const [area, setArea] = useState("");
+// initial holds values read from an uploaded 등기부; the parent remounts this component (key) to apply new ones.
+export default function MarketPriceLookup({
+  onEstimate,
+  initial,
+}: {
+  onEstimate: (manwon: number | null) => void;
+  initial?: FormPrefill["lookup"];
+}) {
+  const [type, setType] = useState<HouseType>(initial?.type ?? "apartment");
+  const [sido, setSido] = useState(initial?.sido ?? "");
+  const [lawdCd, setLawdCd] = useState(initial?.lawdCd ?? "");
+  const [umdNm, setUmdNm] = useState(initial?.umdNm ?? "");
+  const [jibun, setJibun] = useState(initial?.jibun ?? "");
+  const [area, setArea] = useState(initial?.area != null ? String(initial.area) : "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Estimate | null>(null);
@@ -59,6 +67,11 @@ export default function MarketPriceLookup({ onEstimate }: { onEstimate: (manwon:
       <p className={styles.hint}>
         국토교통부 실거래가(실제로 팔린 가격)로 시세를 추정해 아래 매매시세 칸에 넣어 드려요. 직접 입력해도 됩니다.
       </p>
+      {initial && (
+        <p className={styles.badgeNote}>
+          등기부에서 읽은 집 종류·주소·전용면적을 넣었어요. 맞는지 보고 아래 버튼을 눌러 주세요.
+        </p>
+      )}
 
       <div className={styles.checks} role="radiogroup" aria-label="집 종류">
         {(Object.keys(HOUSE_TYPE_LABELS) as HouseType[]).map((t) => (

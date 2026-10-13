@@ -9,7 +9,9 @@ import {
   type Grade,
   type TitleIssue,
 } from "@/rules/engine";
+import type { FormPrefill } from "@/agent/extract";
 import MarketPriceLookup from "./MarketPriceLookup";
+import RegistryUpload from "./RegistryUpload";
 import { formatKoreanDate, parseKoreanDate } from "./parseDate";
 import styles from "./RiskForm.module.css";
 
@@ -20,6 +22,8 @@ const FIELD_LABELS: Record<Field, string> = {
   titleIssues: "갑구 위험 기재",
   ownershipTransferDate: "소유권 이전일",
 };
+
+const REGISTRY_BADGE = "등기부에서 읽음";
 
 const GRADE_CLASS: Record<Grade, string> = {
   안전: styles.safe,
@@ -36,10 +40,36 @@ export default function RiskForm() {
   const [noIssues, setNoIssues] = useState(false);
   const [transferDate, setTransferDate] = useState("");
   const [result, setResult] = useState<EngineResult | null>(null);
+  // Which fields still hold the value read from the 등기부 (cleared as soon as the user edits them).
+  const [fromRegistry, setFromRegistry] = useState({ mortgage: false, issues: false, transferDate: false });
+  const [lookupInitial, setLookupInitial] = useState<FormPrefill["lookup"] | undefined>(undefined);
+  const [lookupKey, setLookupKey] = useState(0);
   const parsedTransferDate = parseKoreanDate(transferDate);
 
   function toggleIssue(item: TitleIssue) {
     setIssues((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
+    setFromRegistry((f) => ({ ...f, issues: false }));
+  }
+
+  // Runs only after the user has confirmed the values on the review screen.
+  function applyRegistry(p: FormPrefill) {
+    setMortgage(p.mortgageMaxTotal === null ? "" : String(p.mortgageMaxTotal));
+    setIssues(p.titleIssues);
+    setNoIssues(p.noTitleIssues);
+    setTransferDate(p.ownershipTransferDate ? formatKoreanDate(p.ownershipTransferDate) : "");
+    setFromRegistry({
+      mortgage: p.mortgageMaxTotal !== null,
+      issues: p.titleIssues.length > 0 || p.noTitleIssues,
+      transferDate: p.ownershipTransferDate !== null,
+    });
+    // New address: restart the lookup from the 등기부 values and drop an estimate for the old one.
+    setLookupInitial(p.lookup);
+    setLookupKey((k) => k + 1);
+    if (marketPriceFromTrades) {
+      setMarketPrice("");
+      setMarketPriceFromTrades(false);
+    }
+    setResult(null);
   }
 
   function onSubmit(e: FormEvent) {
@@ -62,10 +92,14 @@ export default function RiskForm() {
 
   return (
     <>
+      <RegistryUpload onApply={applyRegistry} />
+
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <AmountField id="deposit" label="보증금" value={deposit} onChange={setDeposit}
           hint="계약서에 적힌 전세 보증금" />
         <MarketPriceLookup
+          key={lookupKey}
+          initial={lookupInitial}
           onEstimate={(manwon) => {
             if (manwon !== null) {
               setMarketPrice(String(manwon));
@@ -84,11 +118,19 @@ export default function RiskForm() {
           }}
           badge={marketPriceFromTrades ? "실거래 추정값" : undefined}
           hint="이 집을 지금 판다면 받을 수 있는 가격. 위에서 실거래가로 찾거나 직접 입력하세요." />
-        <AmountField id="mortgage" label="근저당 채권최고액 합계" value={mortgage} onChange={setMortgage}
+        <AmountField id="mortgage" label="근저당 채권최고액 합계" value={mortgage}
+          onChange={(v) => {
+            setMortgage(v);
+            setFromRegistry((f) => ({ ...f, mortgage: false }));
+          }}
+          badge={fromRegistry.mortgage ? REGISTRY_BADGE : undefined}
           hint="등기부 을구에 근저당이 없을 때만 0을 입력하세요. 잘 모르겠으면 비워 두세요." />
 
         <fieldset className={styles.fieldset}>
-          <legend className={styles.label}>갑구 위험 기재</legend>
+          <legend className={styles.label}>
+            갑구 위험 기재
+            {fromRegistry.issues && <span className={styles.badge}>{REGISTRY_BADGE}</span>}
+          </legend>
           <p className={styles.hint}>등기부 갑구(소유권에 관한 사항)에 아래 기록이 있으면 모두 고르세요.</p>
           <div className={styles.checks}>
             {TITLE_ISSUES.map((item) => (
@@ -98,20 +140,30 @@ export default function RiskForm() {
               </label>
             ))}
             <label className={styles.check}>
-              <input type="checkbox" checked={noIssues} onChange={(e) => setNoIssues(e.target.checked)} />
+              <input type="checkbox" checked={noIssues}
+                onChange={(e) => {
+                  setNoIssues(e.target.checked);
+                  setFromRegistry((f) => ({ ...f, issues: false }));
+                }} />
               해당 없음
             </label>
           </div>
         </fieldset>
 
         <div className={styles.field}>
-          <label htmlFor="transferDate" className={styles.label}>소유권 이전일</label>
+          <label htmlFor="transferDate" className={styles.label}>
+            소유권 이전일
+            {fromRegistry.transferDate && <span className={styles.badge}>{REGISTRY_BADGE}</span>}
+          </label>
           <p className={styles.hint}>
             등기부 갑구에서 가장 최근 &lsquo;소유권이전&rsquo;의 접수일을 적힌 그대로 넣어 주세요. (예: 2024년 5월 12일)
           </p>
           <input id="transferDate" type="text" inputMode="text" autoComplete="off" className={styles.input}
             placeholder="2024년 5월 12일" value={transferDate} aria-describedby="transferDateReadback"
-            onChange={(e) => setTransferDate(e.target.value)} />
+            onChange={(e) => {
+              setTransferDate(e.target.value);
+              setFromRegistry((f) => ({ ...f, transferDate: false }));
+            }} />
           <p id="transferDateReadback" aria-live="polite"
             className={parsedTransferDate.kind === "invalid" ? styles.errorText : styles.hint}>
             {parsedTransferDate.kind === "ok" && `${formatKoreanDate(parsedTransferDate.iso)}로 읽었어요 ✓`}
