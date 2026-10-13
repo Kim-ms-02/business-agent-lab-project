@@ -10,6 +10,7 @@ import {
   type TitleIssue,
 } from "@/rules/engine";
 import MarketPriceLookup from "./MarketPriceLookup";
+import { formatKoreanDate, parseKoreanDate } from "./parseDate";
 import styles from "./RiskForm.module.css";
 
 const FIELD_LABELS: Record<Field, string> = {
@@ -35,6 +36,7 @@ export default function RiskForm() {
   const [noIssues, setNoIssues] = useState(false);
   const [transferDate, setTransferDate] = useState("");
   const [result, setResult] = useState<EngineResult | null>(null);
+  const parsedTransferDate = parseKoreanDate(transferDate);
 
   function toggleIssue(item: TitleIssue) {
     setIssues((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
@@ -50,7 +52,8 @@ export default function RiskForm() {
           mortgageMaxTotal: toAmount(mortgage),
           titleIssues: TITLE_ISSUES.filter((i) => issues.includes(i)),
           noTitleIssues: noIssues,
-          ownershipTransferDate: transferDate === "" ? undefined : transferDate,
+          // Unreadable dates are not passed on, so the engine reports the date as missing.
+          ownershipTransferDate: parsedTransferDate.kind === "ok" ? parsedTransferDate.iso : undefined,
         },
         localToday(),
       ),
@@ -103,9 +106,17 @@ export default function RiskForm() {
 
         <div className={styles.field}>
           <label htmlFor="transferDate" className={styles.label}>소유권 이전일</label>
-          <p className={styles.hint}>등기부 갑구에서 가장 최근 &lsquo;소유권이전&rsquo;의 접수일</p>
-          <input id="transferDate" type="date" className={styles.input} value={transferDate}
+          <p className={styles.hint}>
+            등기부 갑구에서 가장 최근 &lsquo;소유권이전&rsquo;의 접수일을 적힌 그대로 넣어 주세요. (예: 2024년 5월 12일)
+          </p>
+          <input id="transferDate" type="text" inputMode="text" autoComplete="off" className={styles.input}
+            placeholder="2024년 5월 12일" value={transferDate} aria-describedby="transferDateReadback"
             onChange={(e) => setTransferDate(e.target.value)} />
+          <p id="transferDateReadback" aria-live="polite"
+            className={parsedTransferDate.kind === "invalid" ? styles.errorText : styles.hint}>
+            {parsedTransferDate.kind === "ok" && `${formatKoreanDate(parsedTransferDate.iso)}로 읽었어요 ✓`}
+            {parsedTransferDate.kind === "invalid" && "날짜를 읽지 못했어요. 예: 2024년 5월 12일"}
+          </p>
         </div>
 
         <button type="submit" className={styles.submit}>위험 확인하기</button>
