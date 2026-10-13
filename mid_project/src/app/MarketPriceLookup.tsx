@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import {
   HOUSE_TYPE_LABELS,
-  MARKET_PRICE_METHOD,
   type Estimate,
   type HouseType,
   type Trade,
 } from "@/data/marketPrice";
 import { REGIONS } from "@/data/regions";
+import { MARKET_PRICE_METHOD } from "@/rules/config";
 import styles from "./RiskForm.module.css";
 
 const SIDOS = [...new Set(REGIONS.map((r) => r.sido))];
@@ -136,7 +136,7 @@ function EstimateView({ result }: { result: Estimate }) {
         </p>
       )}
       <p className={styles.hint}>
-        방법: {MARKET_PRICE_METHOD.source} (기간 {period.from} ~ {period.to}, 기준일 {MARKET_PRICE_METHOD.basisDate}).
+        방법: {MARKET_PRICE_METHOD.source.source} (기간 {period.from} ~ {period.to}, 기준일 {MARKET_PRICE_METHOD.source.basisDate}).
         실제로 팔린 가격을 바탕으로 한 추정값이라 지금 시세와 다를 수 있어요.
         {cancelledCount > 0 && ` 취소된 거래 ${cancelledCount}건은 뺐어요.`}
       </p>

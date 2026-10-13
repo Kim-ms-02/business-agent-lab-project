@@ -55,6 +55,19 @@ export const RECENT_TRANSFER = {
   },
 } as const;
 
+// v0.2 market price estimate from 실거래가 (used by src/data/marketPrice.ts, not by the engine).
+export const MARKET_PRICE_METHOD = {
+  months: 6, // contract date within the last 6 months, today included
+  areaTolerance: 0.1, // 전용면적 ±10%
+  minTrades: 3, // fewer brokered trades than this -> no estimate
+  source: {
+    source: "자체 기준: 같은 법정동·지번, 전용면적 ±10%, 최근 6개월 중개거래 가격의 중앙값",
+    url: "URL 미확인",
+    basisDate: "2026-10-13",
+    note: "사용자 승인 2026-10-13",
+  },
+} as const;
+
 // Rule 6 (v0.4, not used by the engine yet): HUG guarantee eligibility.
 export const HUG_GUARANTEE = {
   depositLimitCapitalArea: 70000, // 수도권 7억원

@@ -1,6 +1,9 @@
 // 실거래가 조회와 시세 추정.
 // Estimation is a pure function; fetching runs on the server only (uses DATA_GO_KR_KEY).
 // All money amounts are in 만원. Field names follow docs/api/fields.md.
+// Method thresholds live in src/rules/config.ts (MARKET_PRICE_METHOD).
+
+import { MARKET_PRICE_METHOD } from "../rules/config";
 
 export type HouseType = "apartment" | "rowhouse" | "officetel";
 
@@ -10,14 +13,6 @@ export const HOUSE_TYPE_LABELS: Record<HouseType, string> = {
   officetel: "오피스텔",
 };
 
-// Estimation method approved by the project owner on 2026-10-13 (자체 기준).
-export const MARKET_PRICE_METHOD = {
-  months: 6, // contract date within the last 6 months, today included
-  areaTolerance: 0.1, // 전용면적 ±10%
-  minTrades: 3, // fewer brokered trades than this -> no estimate
-  source: "자체 기준: 같은 법정동·지번, 전용면적 ±10%, 최근 6개월 중개거래 가격의 중앙값",
-  basisDate: "2026-10-13",
-} as const;
 
 const ENDPOINTS: Record<HouseType, { path: string; nameTag: string }> = {
   apartment: { path: "RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade", nameTag: "aptNm" },
