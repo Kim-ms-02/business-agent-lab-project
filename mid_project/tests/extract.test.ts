@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildReview,
+  checkUpload,
   checkKeys,
   houseTypeFromUsage,
   parseArea,
@@ -395,5 +396,42 @@ describe("toFormPrefill", () => {
       ownershipTransferDate: "2020-02-14",
       lookup: { type: null, sido: null, lawdCd: null, umdNm: null, jibun: null, area: null },
     });
+  });
+});
+
+describe("checkUpload", () => {
+  const PDF = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]; // %PDF-1
+  const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const JPG = [0xff, 0xd8, 0xff, 0xe0];
+  const HEIC = [0, 0, 0, 0x18, ...[..."ftypheic"].map((c) => c.charCodeAt(0))];
+  const file = (head: number[], size = 100) => {
+    const bytes = new Uint8Array(size);
+    bytes.set(head);
+    return { name: "x", bytes };
+  };
+
+  it("detects the type from the file contents, not the name", () => {
+    const r = checkUpload([file(PNG), file(JPG)]);
+    expect(r).toMatchObject({ ok: true });
+    if (r.ok) expect(r.files.map((f) => f.mediaType)).toEqual(["image/png", "image/jpeg"]);
+  });
+
+  it("accepts a single PDF", () => {
+    const r = checkUpload([file(PDF)]);
+    expect(r.ok && r.files[0].mediaType).toBe("application/pdf");
+  });
+
+  it.each([
+    ["no file", [], "골라"],
+    ["HEIC photo", [file(HEIC)], "HEIC"],
+    ["unknown type", [file([0x50, 0x4b, 0x03, 0x04])], "PDF, JPG, PNG"],
+    ["PDF with a photo", [file(PDF), file(PNG)], "PDF는 한 번에 하나"],
+    ["two PDFs", [file(PDF), file(PDF)], "PDF는 한 번에 하나"],
+    ["too many photos", Array.from({ length: 11 }, () => file(PNG)), "10장"],
+    ["too large in total", [file(PNG, 3_000_000), file(PNG, 1_300_000)], "너무 커요"],
+  ])("rejects %s", (_label, files, text) => {
+    const r = checkUpload(files);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain(text);
   });
 });
