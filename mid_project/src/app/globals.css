@@ -8,6 +8,8 @@
   --safe: #15803d;
   --caution: #b45309;
   --danger: #b91c1c;
+  --warn-bg: #fef3c7;
+  --warn-border: #b45309;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -21,6 +23,8 @@
     --safe: #4ade80;
     --caution: #fbbf24;
     --danger: #f87171;
+    --warn-bg: #3a2a05;
+    --warn-border: #fbbf24;
   }
   html {
     color-scheme: dark;
