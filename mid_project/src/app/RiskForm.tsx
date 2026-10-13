@@ -9,6 +9,7 @@ import {
   type Grade,
   type TitleIssue,
 } from "@/rules/engine";
+import MarketPriceLookup from "./MarketPriceLookup";
 import styles from "./RiskForm.module.css";
 
 const FIELD_LABELS: Record<Field, string> = {
@@ -28,6 +29,7 @@ const GRADE_CLASS: Record<Grade, string> = {
 export default function RiskForm() {
   const [deposit, setDeposit] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
+  const [marketPriceFromTrades, setMarketPriceFromTrades] = useState(false);
   const [mortgage, setMortgage] = useState("");
   const [issues, setIssues] = useState<TitleIssue[]>([]);
   const [noIssues, setNoIssues] = useState(false);
@@ -60,8 +62,25 @@ export default function RiskForm() {
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <AmountField id="deposit" label="보증금" value={deposit} onChange={setDeposit}
           hint="계약서에 적힌 전세 보증금" />
-        <AmountField id="marketPrice" label="매매시세" value={marketPrice} onChange={setMarketPrice}
-          hint="이 집을 지금 판다면 받을 수 있는 가격 (직접 입력)" />
+        <MarketPriceLookup
+          onEstimate={(manwon) => {
+            if (manwon !== null) {
+              setMarketPrice(String(manwon));
+              setMarketPriceFromTrades(true);
+            } else if (marketPriceFromTrades) {
+              // Clear an estimate left over from a previous lookup; keep values the user typed.
+              setMarketPrice("");
+              setMarketPriceFromTrades(false);
+            }
+          }}
+        />
+        <AmountField id="marketPrice" label="매매시세" value={marketPrice}
+          onChange={(v) => {
+            setMarketPrice(v);
+            setMarketPriceFromTrades(false);
+          }}
+          badge={marketPriceFromTrades ? "실거래 추정값" : undefined}
+          hint="이 집을 지금 판다면 받을 수 있는 가격. 위에서 실거래가로 찾거나 직접 입력하세요." />
         <AmountField id="mortgage" label="근저당 채권최고액 합계" value={mortgage} onChange={setMortgage}
           hint="등기부 을구에 근저당이 없을 때만 0을 입력하세요. 잘 모르겠으면 비워 두세요." />
 
@@ -103,10 +122,14 @@ function AmountField(props: {
   value: string;
   onChange: (v: string) => void;
   hint: string;
+  badge?: string;
 }) {
   return (
     <div className={styles.field}>
-      <label htmlFor={props.id} className={styles.label}>{props.label} (만원)</label>
+      <label htmlFor={props.id} className={styles.label}>
+        {props.label} (만원)
+        {props.badge && <span className={styles.badge}>{props.badge}</span>}
+      </label>
       <p className={styles.hint}>{props.hint}</p>
       <input id={props.id} type="number" inputMode="numeric" min={0} step={1} className={styles.input}
         value={props.value} onChange={(e) => props.onChange(e.target.value)} />
