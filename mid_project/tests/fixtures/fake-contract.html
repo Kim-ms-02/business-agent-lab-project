@@ -1,0 +1,114 @@
+<!doctype html>
+<!-- 테스트용 가상 문서: 실제 계약서가 아님. 사람·회사·지번은 모두 지어낸 것.
+     One template for fake-11 ~ fake-15: open as fake-contract.html?id=11#photo ... -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>가상 주택임대차계약서</title>
+<link rel="stylesheet" href="fake-registry.css">
+<style>
+  .lead { margin: 2mm 0 4mm; }
+  .kv th { width: 22%; }
+  .clause { margin: 1.5mm 0; }
+  .sign td { height: 14mm; }
+  .tick { font-family: "Apple SD Gothic Neo", sans-serif; }
+</style>
+</head>
+<body>
+<script>document.body.classList.add(...location.hash.slice(1).split(",").filter(Boolean));</script>
+<div class="fake-banner">※ 테스트용 가상 문서 · 실제 계약서가 아닙니다</div>
+<div class="watermark">테스트용 가상 문서</div>
+
+<h1>주택임대차계약서</h1>
+<div class="subtitle"><span class="tick">□</span> 보증금 있는 월세 &nbsp; <span class="tick">■</span> 전세 &nbsp; <span class="tick">□</span> 월세</div>
+<p class="lead">임대인과 임차인은 아래 주택에 관하여 다음과 같이 임대차계약을 맺는다.</p>
+
+<div class="section-title">[ 임차주택의 표시 ]</div>
+<table class="kv">
+  <tr><th>소 재 지</th><td id="address"></td></tr>
+  <tr><th>건 물</th><td id="building"></td></tr>
+  <tr><th>임차할 부분</th><td id="part"></td></tr>
+</table>
+
+<div class="section-title">[ 계약 내용 ]</div>
+<p class="clause"><b>제1조(보증금)</b> 보증금 및 지급 시기는 다음과 같다.</p>
+<table class="kv">
+  <tr><th>보 증 금</th><td id="deposit"></td></tr>
+  <tr><th>계 약 금</th><td id="downPayment"></td></tr>
+  <tr><th>잔 금</th><td id="balance"></td></tr>
+</table>
+<p class="clause"><b>제2조(임대차기간)</b> <span id="period"></span></p>
+<p class="clause"><b>제3조(입주 전 수리)</b> 임대인과 임차인은 입주 전 수리할 곳이 없음을 확인한다.</p>
+<p class="clause"><b>특약사항</b> <span id="special"></span></p>
+
+<p class="lead" style="text-align:center">계약일: <b id="contractDate"></b></p>
+
+<table class="sign">
+  <colgroup><col style="width:12%"><col style="width:14%"><col style="width:48%"><col style="width:26%"></colgroup>
+  <tr><th rowspan="3">임대인</th><th>주 소</th><td id="landlordAddr"></td><td rowspan="3" class="c">(서명 또는 날인)</td></tr>
+  <tr><th>주민등록번호</th><td id="landlordId"></td></tr>
+  <tr><th>성 명</th><td id="landlordName"></td></tr>
+  <tr><th rowspan="2">대리인</th><th>주 소</th><td id="agentAddr"></td><td rowspan="2" class="c" id="agentSign"></td></tr>
+  <tr><th>성 명</th><td id="agentName"></td></tr>
+  <tr><th rowspan="2">임차인</th><th>주 소</th><td>서울특별시 가상구 세입자로 7</td><td rowspan="2" class="c">(서명 또는 날인)</td></tr>
+  <tr><th>성 명</th><td>임세진</td></tr>
+</table>
+
+<script>
+// Values per case. Every name, company and 지번 is made up.
+const CASES = {
+  "11": { // pairs with fake-01: matches the 등기부
+    address: "서울특별시 송파구 가락동 9101 가상아파트 제101동 제1203호",
+    building: "철근콘크리트구조 아파트 / 전용면적 84.95㎡", part: "전부",
+    deposit: "금 사억원정 (₩400,000,000)", downPayment: "금 사천만원정 (₩40,000,000) 계약 시 지급",
+    balance: "금 삼억육천만원정 (₩360,000,000) 2026년 11월 1일 지급",
+    period: "2026년 11월 1일부터 2028년 10월 31일까지 (24개월)", special: "없음.",
+    contractDate: "2026년 10월 10일",
+    landlordName: "홍길동", landlordId: "000000-*******", landlordAddr: "서울특별시 가상구 테스트로 101, 101동 1203호",
+  },
+  "12": { // pairs with fake-01: the landlord is not the registered owner
+    address: "서울특별시 송파구 가락동 9101 가상아파트 제101동 제1203호",
+    building: "철근콘크리트구조 아파트 / 전용면적 84.95㎡", part: "전부",
+    deposit: "금 사억원정 (₩400,000,000)", downPayment: "금 사천만원정 (₩40,000,000) 계약 시 지급",
+    balance: "금 삼억육천만원정 (₩360,000,000) 2026년 11월 1일 지급",
+    period: "2026년 11월 1일부터 2028년 10월 31일까지 (24개월)", special: "없음.",
+    contractDate: "2026년 10월 11일",
+    landlordName: "김철수", landlordId: "000000-*******", landlordAddr: "서울특별시 가상구 다른로 12",
+  },
+  "13": { // pairs with fake-01: same owner, but 1204호 instead of 1203호
+    address: "서울특별시 송파구 가락동 9101 가상아파트 제101동 제1204호",
+    building: "철근콘크리트구조 아파트 / 전용면적 84.95㎡", part: "전부",
+    deposit: "금 사억원정 (₩400,000,000)", downPayment: "금 사천만원정 (₩40,000,000) 계약 시 지급",
+    balance: "금 삼억육천만원정 (₩360,000,000) 2026년 11월 1일 지급",
+    period: "2026년 11월 1일부터 2028년 10월 31일까지 (24개월)", special: "없음.",
+    contractDate: "2026년 10월 12일",
+    landlordName: "홍길동", landlordId: "000000-*******", landlordAddr: "서울특별시 가상구 테스트로 101, 101동 1203호",
+  },
+  "14": { // pairs with fake-02: only one of the two co-owners, signed by an agent
+    address: "서울특별시 마포구 망원동 9202 가상빌라 제302호",
+    building: "철근콘크리트구조 다세대주택 / 전용면적 59.87㎡", part: "전부",
+    deposit: "금 이억원정 (₩200,000,000)", downPayment: "금 이천만원정 (₩20,000,000) 계약 시 지급",
+    balance: "금 일억팔천만원정 (₩180,000,000) 2026년 11월 15일 지급",
+    period: "2026년 11월 15일부터 2028년 11월 14일까지 (24개월)", special: "임대인의 위임장과 인감증명서를 첨부한다.",
+    contractDate: "2026년 10월 9일",
+    landlordName: "김영희", landlordId: "000000-*******", landlordAddr: "서울특별시 가상구 테스트로 202",
+    agentName: "이대리", agentAddr: "서울특별시 가상구 대리로 5", agentSign: "(서명 또는 날인)",
+  },
+  "15": { // pairs with fake-03: owned by a trust company, deposit above the 수도권 limit
+    address: "경기도 성남시 분당구 정자동 9303 가상오피스텔 제805호",
+    building: "철근콘크리트구조 업무시설(오피스텔), 주거용 / 전용면적 33.12㎡", part: "전부",
+    deposit: "금 팔억원정 (₩800,000,000)", downPayment: "금 팔천만원정 (₩80,000,000) 계약 시 지급",
+    balance: "금 칠억이천만원정 (₩720,000,000) 2026년 12월 1일 지급",
+    period: "2026년 12월 1일부터 2028년 11월 30일까지 (24개월)", special: "주거용으로 사용한다.",
+    contractDate: "2026년 10월 13일",
+    landlordName: "샘플부동산신탁주식회사", landlordId: "110111-*******", landlordAddr: "서울특별시 가상구 신탁로 8",
+  },
+};
+const c = CASES[new URLSearchParams(location.search).get("id")] ?? CASES["11"];
+for (const [k, v] of Object.entries(c)) {
+  const el = document.getElementById(k);
+  if (el) el.textContent = v;
+}
+</script>
+</body>
+</html>
