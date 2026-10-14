@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import type { Evidence, ReviewOk, TenancyKind } from "@/agent/extract";
 import { HOUSE_TYPE_LABELS } from "@/data/marketPrice";
 import { formatKoreanDate } from "./parseDate";
+import { Row, wonText } from "./ReviewRow";
 import styles from "./RiskForm.module.css";
 
 // Fixed wording (not written by the AI). The 조문 text itself could not be opened on
@@ -71,6 +72,13 @@ export default function RegistryReview({
           "찾지 못함"
         )}
       </Row>
+      {review.unit && (
+        <Row label="동·호수" {...rowProps("unit", review.unit)}>
+          {review.unit.value
+            ? `${review.unit.value.dong ? `${review.unit.value.dong}동 ` : ""}${review.unit.value.ho}호`
+            : "찾지 못함"}
+        </Row>
+      )}
       <Row label="집 종류" {...rowProps("houseType", houseType)}>
         {houseType.value ? HOUSE_TYPE_LABELS[houseType.value] : "알 수 없음"}
       </Row>
@@ -156,50 +164,4 @@ export default function RegistryReview({
       )}
     </div>
   );
-}
-
-function Row(props: {
-  label: string;
-  children: ReactNode;
-  needsCheck: boolean;
-  reasons: string[];
-  evidence: Evidence[];
-  checked: boolean;
-  onCheck: (on: boolean) => void;
-}) {
-  return (
-    <div className={props.needsCheck ? `${styles.reviewRow} ${styles.needsCheck}` : styles.reviewRow}>
-      <div className={styles.reviewHead}>
-        <span className={styles.label}>{props.label}</span>
-        {props.needsCheck && <span className={styles.checkBadge}>⚠ 확인 필요</span>}
-      </div>
-      <div>{props.children}</div>
-      {props.reasons.length > 0 && <p className={styles.hint}>{props.reasons.join(" ")}</p>}
-      {props.evidence.length > 0 ? (
-        <ul className={styles.evidence}>
-          {props.evidence.map((e, i) => (
-            <li key={i}>
-              근거{e.location && ` (${e.location})`}: <q>{e.quote}</q>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {props.needsCheck && (
-        <label className={styles.check}>
-          <input type="checkbox" checked={props.checked} onChange={(e) => props.onCheck(e.target.checked)} />
-          등기부와 비교해서 확인했어요
-        </label>
-      )}
-    </div>
-  );
-}
-
-// 180000000 -> "1억 8,000만원", 52345000 -> "5,234만 5,000원"
-function wonText(won: number): string {
-  const eok = Math.floor(won / 100_000_000);
-  const man = Math.floor((won % 100_000_000) / 10_000);
-  const rest = won % 10_000;
-  const parts = [eok > 0 && `${eok}억`, man > 0 && `${man.toLocaleString("ko-KR")}만`, rest > 0 && rest.toLocaleString("ko-KR")];
-  const text = parts.filter(Boolean).join(" ");
-  return text === "" ? "0원" : `${text}원`;
 }
