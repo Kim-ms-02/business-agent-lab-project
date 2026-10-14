@@ -1,7 +1,17 @@
 // Risk rule engine. Pure functions only: the grade and every number come from here, never from the LLM.
 // All money amounts are in 만원 (10,000 KRW).
 
-import { JEONSE_RATIO, RECENT_TRANSFER, SENIOR_BURDEN, type Source } from "./config";
+import {
+  ADDRESS_CHECK,
+  CAPITAL_AREA_SIDO_CODES,
+  HOUSE_PRICE_METHOD,
+  HUG_GUARANTEE,
+  JEONSE_RATIO,
+  LANDLORD_CHECK,
+  RECENT_TRANSFER,
+  SENIOR_BURDEN,
+  type Source,
+} from "./config";
 
 export type Grade = "안전" | "주의" | "위험";
 
@@ -16,7 +26,21 @@ export type EngineInput = {
   titleIssues?: TitleIssue[];
   noTitleIssues?: boolean; // user explicitly confirmed "해당 없음"
   ownershipTransferDate?: string; // YYYY-MM-DD
+
+  // v0.4. Optional: when they are missing the new checks report what they need,
+  // but the grade from rules 1–5 is not withheld.
+  landlordNames?: string[]; // 계약서 임대인
+  ownerNames?: string[]; // 등기부 소유자 (공유자 모두)
+  isAgentContract?: boolean; // 대리인 계약
+  contractUnit?: Unit; // 계약서 소재지의 지번·동·호수
+  registryUnit?: Unit; // 등기부의 지번·동·호수
+  contractDeposit?: number; // 계약서 보증금 (만원)
+  houseType?: "apartment" | "rowhouse" | "officetel";
+  lawdCd?: string; // 시군구 코드 5자리 (수도권 판단)
+  publicPrice?: number; // 공시가격 (만원), typed by the user
 };
+
+export type Unit = { jibun: string; dong: string | null; ho: string };
 
 export type Field =
   | "deposit"
@@ -25,7 +49,7 @@ export type Field =
   | "titleIssues"
   | "ownershipTransferDate";
 
-export type RuleId = "jeonseRatio" | "seniorBurden" | "titleIssues" | "recentTransfer";
+export type RuleId = "jeonseRatio" | "seniorBurden" | "titleIssues" | "recentTransfer" | "landlord" | "address";
 
 export type Hit = {
   ruleId: RuleId;
@@ -41,7 +65,19 @@ export type EngineResult = {
   missing: Field[];
   errors: { field: Field; message: string }[];
   metrics: { jeonseRatio?: number; seniorBurdenRatio?: number };
+  // v0.4 checks. result null = not enough values; needs lists them in plain words.
+  landlord: Check<"일치" | "불일치" | "확인 필요">;
+  address: Check<"일치" | "불일치">;
+  depositMismatch: { contract: number; entered: number } | null;
+  // Rule 6 is a warning next to the grade, never part of it.
+  guarantee: Check<"가입 가능성 낮음" | "기준 안에 있음"> & {
+    housePrice: number | null; // 만원, the price used for the 90% / 60% checks
+    notes: string[];
+    source: Source;
+  };
 };
+
+export type Check<R> = { result: R | null; reasons: string[]; needs: string[] };
 
 const GRADE_ORDER: Grade[] = ["안전", "주의", "위험"];
 
@@ -115,6 +151,41 @@ export function evaluate(input: EngineInput, today: string): EngineResult {
     }
   }
 
+  // Rule 4: 계약서 임대인 vs 등기부 소유자
+  const landlord = checkLandlord(input);
+  if (landlord.result === "불일치" || landlord.result === "확인 필요") {
+    const danger = landlord.result === "불일치";
+    hits.push({
+      ruleId: "landlord",
+      grade: danger ? "위험" : "주의",
+      reason: danger
+        ? `위험: 집주인 불일치 — ${landlord.reasons.join(" ")} 계약하는 사람이 등기부의 집주인이 아니면 보증금을 돌려받지 못할 수 있습니다.`
+        : `확인 필요: ${landlord.reasons.join(" ")}`,
+      values: { landlordNames: input.landlordNames ?? [], ownerNames: input.ownerNames ?? [] },
+      source: LANDLORD_CHECK.source,
+    });
+  }
+
+  // 주소 대조: 계약서 소재지 vs 등기부 (지번·동·호수)
+  const address = checkAddress(input.contractUnit, input.registryUnit);
+  if (address.result === "불일치") {
+    hits.push({
+      ruleId: "address",
+      grade: "주의",
+      reason: `확인 필요: 주소 불일치 — ${address.reasons.join(" ")} 계약서에 적힌 집이 등기부의 집과 같은지 확인하세요.`,
+      values: {},
+      source: ADDRESS_CHECK.source,
+    });
+  }
+
+  const depositMismatch =
+    deposit !== undefined && input.contractDeposit !== undefined && input.contractDeposit !== deposit
+      ? { contract: input.contractDeposit, entered: deposit }
+      : null;
+
+  // Rule 6: 보증보험 (uses only values that passed the checks above)
+  const guarantee = checkGuarantee(input, deposit, mortgage, marketPrice);
+
   const worst = hits.reduce<Grade>(
     (acc, h) => (GRADE_ORDER.indexOf(h.grade) > GRADE_ORDER.indexOf(acc) ? h.grade : acc),
     "안전",
@@ -123,7 +194,127 @@ export function evaluate(input: EngineInput, today: string): EngineResult {
   // Never report 안전 (or a possibly understated 주의) while a value is missing or invalid.
   const grade = worst === "위험" ? "위험" : incomplete ? null : worst;
 
-  return { grade, hits, missing, errors, metrics };
+  return { grade, hits, missing, errors, metrics, landlord, address, depositMismatch, guarantee };
+}
+
+// Spaces, parenthesized parts (한자 병기) and middle dots do not count.
+export function normalizeName(name: string): string {
+  return name.replace(/[(（][^)）]*[)）]/g, "").replace(/[\s·・ㆍ‧•]/g, "");
+}
+
+function checkLandlord(input: EngineInput): EngineResult["landlord"] {
+  const landlords = (input.landlordNames ?? []).filter((n) => n.trim() !== "");
+  const owners = (input.ownerNames ?? []).filter((n) => n.trim() !== "");
+  const needs = [...(landlords.length === 0 ? ["임대인 이름"] : []), ...(owners.length === 0 ? ["등기부 소유자"] : [])];
+  if (needs.length > 0) return { result: null, reasons: [], needs };
+
+  const ownerKeys = owners.map(normalizeName);
+  const strangers = landlords.filter((l) => !ownerKeys.includes(normalizeName(l)));
+  if (strangers.length > 0) {
+    return {
+      result: "불일치",
+      reasons: [`계약서 임대인(${landlords.join(", ")})과 등기부 소유자(${owners.join(", ")})가 달라요.`],
+      needs: [],
+    };
+  }
+
+  const reasons: string[] = [];
+  const landlordKeys = landlords.map(normalizeName);
+  if (ownerKeys.some((o) => !landlordKeys.includes(o))) {
+    reasons.push(`공동명의(${owners.join(", ")})인데 임대인은 그중 ${landlords.join(", ")}만이에요. 다른 소유자의 동의(위임)를 확인하세요.`);
+  }
+  if (input.isAgentContract) reasons.push("대리인이 계약해요. 위임장과 인감증명서로 집주인이 맡긴 것이 맞는지 확인하세요.");
+  if (owners.some((o) => LANDLORD_CHECK.corporateMarkers.some((m) => o.includes(m)))) {
+    reasons.push("법인 소유예요. 계약하는 사람이 법인을 대표하거나 위임받았는지 확인하세요.");
+  }
+  return { result: reasons.length > 0 ? "확인 필요" : "일치", reasons, needs: [] };
+}
+
+function unitKey(u: Unit) {
+  const clean = (s: string | null) => (s === null ? null : s.replace(/\s|번지|^제/g, "").replace(/[동호]$/, ""));
+  return { 지번: clean(u.jibun), 동: clean(u.dong) || null, 호수: clean(u.ho) };
+}
+
+function checkAddress(contract: Unit | undefined, registry: Unit | undefined): EngineResult["address"] {
+  const needs = [...(contract ? [] : ["계약서 주소(동·호수)"]), ...(registry ? [] : ["등기부 주소(동·호수)"])];
+  if (!contract || !registry) return { result: null, reasons: [], needs };
+  const c = unitKey(contract);
+  const r = unitKey(registry);
+  const reasons = (["지번", "동", "호수"] as const)
+    .filter((k) => c[k] !== r[k])
+    .map((k) => `${k}가 달라요(계약서 ${c[k] ?? "없음"}, 등기부 ${r[k] ?? "없음"}).`);
+  return { result: reasons.length > 0 ? "불일치" : "일치", reasons, needs: [] };
+}
+
+function checkGuarantee(
+  input: EngineInput,
+  deposit: number | undefined,
+  mortgage: number | undefined,
+  marketPrice: number | undefined,
+): EngineResult["guarantee"] {
+  const needs: string[] = [];
+  const reasons: string[] = [];
+  const notes: string[] = [];
+  const type = input.houseType;
+
+  if (deposit === undefined) needs.push("보증금");
+  if (input.lawdCd === undefined || !/^\d{5}$/.test(input.lawdCd)) needs.push("주소(시군구)");
+  if (type === undefined) needs.push("집 종류");
+
+  // 주택가격 (자체 해석, see HOUSE_PRICE_METHOD): 빌라는 공시가격 × 140%, 그 외는 실거래 추정 시세.
+  let housePrice: number | null = null;
+  if (type !== undefined) {
+    if (HOUSE_PRICE_METHOD[type] === "publicPrice") {
+      const ok = input.publicPrice !== undefined && Number.isFinite(input.publicPrice) && input.publicPrice > 0;
+      if (ok) housePrice = (input.publicPrice as number) * HUG_GUARANTEE.publicPriceRatio;
+      else needs.push("공시가격");
+    } else {
+      if (marketPrice !== undefined) housePrice = marketPrice;
+      else needs.push("매매시세");
+      notes.push(type === "officetel" ? HOUSE_PRICE_METHOD.notes.officetel : HOUSE_PRICE_METHOD.notes.apartment);
+    }
+  }
+  if (mortgage === undefined) needs.push("근저당 채권최고액 합계");
+
+  // ① 보증금 한도
+  if (deposit !== undefined && input.lawdCd !== undefined && /^\d{5}$/.test(input.lawdCd)) {
+    const capital = (CAPITAL_AREA_SIDO_CODES as readonly string[]).includes(input.lawdCd.slice(0, 2));
+    const limit = capital ? HUG_GUARANTEE.depositLimitCapitalArea : HUG_GUARANTEE.depositLimitOther;
+    if (deposit > limit) {
+      reasons.push(`보증금(${won(deposit)})이 ${capital ? "수도권" : "수도권 밖"} 보증 한도(${won(limit)})를 넘어요.`);
+    }
+  }
+  // ② (근저당 + 보증금) ≤ 주택가격 × 90%
+  if (deposit !== undefined && mortgage !== undefined && housePrice !== null) {
+    const cap = housePrice * HUG_GUARANTEE.ltv;
+    if (mortgage + deposit > cap + 1e-9) {
+      reasons.push(
+        `근저당과 보증금의 합(${won(mortgage + deposit)})이 주택가격(${won(round(housePrice))})의 ${pctWhole(HUG_GUARANTEE.ltv)}(${won(round(cap))})를 넘어요.`,
+      );
+    }
+  }
+  // ③ 선순위채권 ≤ 주택가액(주택가격 × 90%) × 60%
+  if (mortgage !== undefined && housePrice !== null) {
+    const cap = housePrice * HUG_GUARANTEE.ltv * HUG_GUARANTEE.seniorDebtMaxRatioOfHouseValue;
+    if (mortgage > cap + 1e-9) {
+      reasons.push(
+        `근저당(${won(mortgage)})이 주택가액(주택가격의 ${pctWhole(HUG_GUARANTEE.ltv)})의 ${pctWhole(HUG_GUARANTEE.seniorDebtMaxRatioOfHouseValue)}(${won(round(cap))})를 넘어요.`,
+      );
+    }
+  }
+
+  // A broken limit is reported even when other values are still missing; otherwise no verdict without every value.
+  const result = reasons.length > 0 ? "가입 가능성 낮음" : needs.length > 0 ? null : "기준 안에 있음";
+  return { result, reasons, needs, housePrice: housePrice === null ? null : round(housePrice), notes, source: HUG_GUARANTEE.source };
+}
+
+function round(n: number): number {
+  return Math.round(n);
+}
+
+// Thresholds read better without a decimal: 0.9 -> "90%".
+function pctWhole(ratio: number): string {
+  return `${Math.round(ratio * 100)}%`;
 }
 
 function readAmount(

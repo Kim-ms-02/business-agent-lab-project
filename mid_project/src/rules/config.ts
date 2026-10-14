@@ -150,3 +150,13 @@ export const LANDLORD_CHECK = {
     note: "사용자 승인 2026-10-14",
   },
 } as const;
+
+// 주소 대조 (v0.4): 계약서 소재지 vs 등기부 — 지번·동·호수 중 하나라도 다르면 확인 필요(주의).
+export const ADDRESS_CHECK = {
+  source: {
+    source: "자체 기준: 계약서와 등기부의 지번·동·호수 비교 (제·동·호·번지 표기와 띄어쓰기는 무시)",
+    url: "URL 미확인",
+    basisDate: "2026-10-14",
+    note: "사용자 승인 2026-10-14",
+  },
+} as const;
