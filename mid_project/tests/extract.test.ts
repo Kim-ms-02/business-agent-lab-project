@@ -1,17 +1,24 @@
 // 테스트용 가상 데이터: every extraction below is made up and mirrors tests/fixtures/fake-0*.
 import { describe, expect, it } from "vitest";
 import {
+  buildContractReview,
   buildReview,
+  checkContractKeys,
   checkUpload,
   checkKeys,
   houseTypeFromUsage,
   parseArea,
+  parseDepositText,
+  parseKoreanAmount,
   parseUnit,
   parseWon,
   splitAddress,
+  toContractPrefill,
   toFormPrefill,
+  validateRawContract,
   validateRawExtraction,
   wonToManwonCeil,
+  type RawContract,
   type RawExtraction,
   type Review,
 } from "../src/agent/extract";
@@ -489,5 +496,151 @@ describe("buildReview: 동·호수 (v0.4)", () => {
   it("rejects a 동·호수 that is not text", () => {
     const raw = villa();
     expect(validateRawExtraction({ ...raw, address: { ...raw.address, unit: 302 } }).ok).toBe(false);
+  });
+});
+
+// ---------- v0.4 계약서 ----------
+// 테스트용 가상 데이터: mirrors tests/fixtures/fake-11 ~ fake-15.
+
+const contract = (): RawContract => ({
+  documentStatus: "ok",
+  statusNote: null,
+  landlords: { items: ["홍길동"], quote: "임대인 성명 홍길동", location: "서명란", confidence: "certain", note: null },
+  agent: field<string>(null, null, "서명란"),
+  address: field("서울특별시 송파구 가락동 9101 가상아파트 제101동 제1204호", "소재지 서울특별시 송파구 가락동 9101 가상아파트 제101동 제1204호", "임차주택의 표시"),
+  deposit: field("금 사억원정 (₩400,000,000)", "보증금 금 사억원정 (₩400,000,000)", "제1조"),
+  contractDate: field("2026년 10월 12일", "계약일: 2026년 10월 12일", "계약일"),
+});
+
+const okContract = (raw: RawContract) => {
+  const r = buildContractReview(raw);
+  if (r.status !== "ok") throw new Error(`expected ok, got ${r.status}`);
+  return r;
+};
+
+describe("parseKoreanAmount", () => {
+  it.each([
+    ["사억", 400000000],
+    ["삼억육천만", 360000000],
+    ["일억팔천만", 180000000],
+    ["팔천만", 80000000],
+    ["이천오백만", 25000000],
+    ["3억6천만", 360000000],
+    ["십억", 1000000000],
+    ["일억이천삼백사십오만", 123450000],
+  ])("%j -> %i", (text, won) => {
+    expect(parseKoreanAmount(text)).toBe(won);
+  });
+
+  it.each(["", "사억원정호", "abc"])("%j -> null", (text) => {
+    expect(parseKoreanAmount(text)).toBeNull();
+  });
+});
+
+describe("parseDepositText", () => {
+  it.each([
+    ["금 사억원정 (₩400,000,000)", 400000000],
+    ["금 이억원정 (₩200,000,000)", 200000000],
+    ["₩800,000,000", 800000000],
+    ["금 삼억육천만원정", 360000000],
+    ["400,000,000원", 400000000],
+  ])("%j -> %i", (text, won) => {
+    expect(parseDepositText(text)).toEqual({ won, conflict: false });
+  });
+
+  it("reports words and numbers that disagree instead of choosing one", () => {
+    expect(parseDepositText("금 사억원정 (₩300,000,000)")).toEqual({ won: null, conflict: true });
+  });
+
+  it("nothing readable -> null", () => {
+    expect(parseDepositText("보증금은 협의")).toEqual({ won: null, conflict: false });
+  });
+});
+
+describe("validateRawContract", () => {
+  it("accepts a well-formed contract", () => {
+    expect(validateRawContract(JSON.parse(JSON.stringify(contract()))).ok).toBe(true);
+  });
+
+  it.each([
+    ["unknown status", { ...contract(), documentStatus: "maybe" }],
+    ["landlords not a list", { ...contract(), landlords: { ...contract().landlords, items: "홍길동" } }],
+    ["missing deposit", { ...contract(), deposit: undefined }],
+  ])("rejects %s", (_label, value) => {
+    expect(validateRawContract(value).ok).toBe(false);
+  });
+});
+
+describe("buildContractReview", () => {
+  it.each([
+    ["unreadable", "다시 찍어"],
+    ["not_contract", "임대차계약서가 아닌"],
+  ] as const)("%s -> message only", (documentStatus, text) => {
+    const r = buildContractReview({ ...contract(), documentStatus });
+    expect(r.status).toBe(documentStatus);
+    expect(r).not.toHaveProperty("landlords");
+    if (r.status !== "ok") expect(r.message).toContain(text);
+  });
+
+  it("reads landlord, address parts, deposit in 만원 and the contract date (fake-13)", () => {
+    const r = okContract(contract());
+    expect(r.landlords.value).toEqual(["홍길동"]);
+    expect(r.agent.value).toEqual({ present: false, name: null });
+    expect(r.address.value).toMatchObject({ jibun: "9101", dong: "101", ho: "1204" });
+    expect(r.deposit.value).toBe(40000);
+    expect(r.contractDate.value).toBe("2026-10-12");
+    expect(checkContractKeys(r)).toEqual([]);
+  });
+
+  it("an agent name means an agent contract (fake-14)", () => {
+    const r = okContract({ ...contract(), agent: field("이대리", "대리인 성명 이대리", "서명란") });
+    expect(r.agent.value).toEqual({ present: true, name: "이대리" });
+  });
+
+  it("flags words and numbers that disagree, and leaves the deposit empty", () => {
+    const r = okContract({ ...contract(), deposit: field("금 사억원정 (₩300,000,000)") });
+    expect(r.deposit.value).toBeNull();
+    expect(r.deposit.needsCheck).toBe(true);
+    expect(r.deposit.reasons.join(" ")).toContain("서로 달라요");
+  });
+
+  it("rounds a deposit below 만원 up and flags it", () => {
+    const r = okContract({ ...contract(), deposit: field("₩400,005,000") });
+    expect(r.deposit.value).toBe(40001);
+    expect(r.deposit.needsCheck).toBe(true);
+  });
+
+  it("flags an address without 호수 and a missing landlord", () => {
+    const r = okContract({
+      ...contract(),
+      address: field("서울특별시 송파구 가락동 9101"),
+      landlords: { ...contract().landlords, items: [] },
+    });
+    expect(r.address.needsCheck).toBe(true);
+    expect(r.landlords.value).toBeNull();
+    expect(checkContractKeys(r)).toEqual(["landlords", "address"]);
+  });
+
+  it("flags a value the AI was unsure about", () => {
+    const raw = contract();
+    raw.contractDate = { ...raw.contractDate, confidence: "uncertain", note: "날짜가 흐림" };
+    expect(checkContractKeys(okContract(raw))).toEqual(["contractDate"]);
+  });
+});
+
+describe("toContractPrefill", () => {
+  it("maps the reviewed contract onto the form", () => {
+    expect(toContractPrefill(okContract({ ...contract(), agent: field("이대리") }))).toEqual({
+      landlordNames: ["홍길동"],
+      isAgentContract: true,
+      contractUnit: { jibun: "9101", dong: "101", ho: "1204" },
+      contractDeposit: 40000,
+      contractDate: "2026-10-12",
+    });
+  });
+
+  it("leaves unknown values empty", () => {
+    const r = okContract({ ...contract(), address: field(null), deposit: field(null), contractDate: field(null) });
+    expect(toContractPrefill(r)).toMatchObject({ contractUnit: null, contractDeposit: null, contractDate: null });
   });
 });
