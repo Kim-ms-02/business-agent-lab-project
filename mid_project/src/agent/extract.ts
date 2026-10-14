@@ -20,7 +20,8 @@ export type RawField = Sourced & { value: string | null };
 export type RawExtraction = {
   documentStatus: DocumentStatus;
   statusNote: string | null;
-  address: RawField; // 지번 주소 (표제부 소재지번)
+  // 지번 주소 (표제부 소재지번). unit = 동·호수 text (v0.4); absent in answers made before v0.4.
+  address: RawField & { unit?: string | null };
   buildingUsage: RawField; // 1동 건물내역
   exclusiveArea: RawField; // 전유부분 면적 text, e.g. "59.87㎡"
   owners: Sourced & { items: { role: string; name: string; share: string | null }[] };
@@ -60,6 +61,8 @@ export type AddressParts = {
   jibun: string | null;
 };
 
+export type UnitParts = { text: string; dong: string | null; ho: string };
+
 export type MortgageItem = {
   creditor: string | null;
   originalWon: number | null;
@@ -84,6 +87,7 @@ export type ReviewOk = {
   status: "ok";
   owners: Reviewed<RawExtraction["owners"]["items"]>;
   address: Reviewed<AddressParts>;
+  unit?: Reviewed<UnitParts>;
   houseType: Reviewed<HouseType>;
   area: Reviewed<number>;
   ownershipTransfer: Reviewed<{ receiptDate: string; causeDate: string | null; cause: string | null }>;
@@ -131,6 +135,15 @@ export function houseTypeFromUsage(usage: string): HouseType | null {
   if (usage.includes("아파트")) return "apartment";
   if (usage.includes("다세대") || usage.includes("연립")) return "rowhouse";
   return null;
+}
+
+// "가상아파트 제101동 제12층 제1203호" -> { dong: "101", ho: "1203" }. No 호수 -> null.
+// 동 is a number, one Latin letter or one Hangul syllable (가동), so 법정동 names like 가락동 never match.
+export function parseUnit(text: string): { dong: string | null; ho: string } | null {
+  const ho = /(?:^|\s)제?((?:B|지하)?\d+)호(?=\s|$)/.exec(text)?.[1];
+  if (!ho) return null;
+  const dong = /(?:^|\s)제?(\d+|[A-Za-z]|[가-힣])동(?=\s|$)/.exec(text)?.[1] ?? null;
+  return { dong, ho };
 }
 
 const UMD_TOKEN = /(동|\d*가|리|읍|면)$/;
@@ -191,6 +204,8 @@ export function validateRawExtraction(value: unknown): Validation {
   for (const key of ["address", "buildingUsage", "exclusiveArea"] as const) {
     need(isSourced(value[key]) && isStrOrNull((value[key] as Record<string, unknown>).value), key);
   }
+  const unit = isObject(value.address) ? value.address.unit : undefined;
+  need(unit === undefined || isStrOrNull(unit), "address.unit");
 
   const owners = value.owners;
   need(
@@ -290,6 +305,7 @@ export function buildReview(raw: RawExtraction): Review {
     status: "ok",
     owners: reviewed(raw.owners, raw.owners.items.length > 0 ? raw.owners.items : null),
     address: reviewAddress(raw.address),
+    ...(raw.address.unit !== undefined && { unit: reviewUnit(raw.address, raw.address.unit) }),
     houseType: reviewHouseType(raw.buildingUsage),
     area: reviewArea(raw.exclusiveArea),
     ownershipTransfer: reviewTransfer(raw.ownershipTransfer),
@@ -330,6 +346,13 @@ function reviewAddress(src: RawField): Reviewed<AddressParts> {
   else if (parts.umdNm === null || parts.jibun === null) extra.push("법정동이나 지번을 찾지 못했어요.");
   else if (parts.umdNm.includes(" ")) extra.push("읍·면 지역은 시세 조회에 쓸 법정동 이름을 확인해 주세요.");
   return reviewed(src, parts, extra);
+}
+
+function reviewUnit(src: RawField, text: string | null): Reviewed<UnitParts> {
+  if (text === null) return reviewed<UnitParts>(src, null, ["동·호수를 찾지 못했어요."]);
+  const parts = parseUnit(text);
+  if (parts === null) return reviewed<UnitParts>(src, null, ["호수를 읽지 못했어요."]);
+  return reviewed(src, { text, ...parts });
 }
 
 function reviewHouseType(src: RawField): Reviewed<HouseType> {
@@ -415,8 +438,8 @@ function reviewMortgageTotal(eulgu: RawExtraction["sections"]["eulgu"], items: M
 // Keys of the items the user must tick before the values go into the form.
 export function checkKeys(r: ReviewOk): string[] {
   const keys: string[] = [];
-  const single = ["owners", "address", "houseType", "area", "ownershipTransfer", "titleIssues"] as const;
-  for (const k of single) if (r[k].needsCheck) keys.push(k);
+  const single = ["owners", "address", "unit", "houseType", "area", "ownershipTransfer", "titleIssues"] as const;
+  for (const k of single) if (r[k]?.needsCheck) keys.push(k);
   r.mortgages.forEach((m, i) => m.needsCheck && keys.push(`mortgage:${i}`));
   if (r.mortgageTotal.needsCheck) keys.push("mortgageTotal");
   r.tenancies.forEach((_t, i) => keys.push(`tenancy:${i}`));
@@ -436,6 +459,8 @@ export type FormPrefill = {
     jibun: string | null;
     area: number | null;
   };
+  // v0.4: only present when the answer carried 동·호수 (null = not readable).
+  registryUnit?: { dong: string | null; ho: string } | null;
 };
 
 export function toFormPrefill(r: ReviewOk): FormPrefill {
@@ -453,6 +478,7 @@ export function toFormPrefill(r: ReviewOk): FormPrefill {
       jibun: a?.jibun ?? null,
       area: r.area.value,
     },
+    ...(r.unit && { registryUnit: r.unit.value ? { dong: r.unit.value.dong, ho: r.unit.value.ho } : null }),
   };
 }
 
@@ -519,7 +545,8 @@ const sourced = { quote: str, location: str, doubt: str };
 const RAW_SCHEMA = obj({
   documentStatus: { type: "string", enum: ["ok", "not_registry", "not_collective_building", "unreadable"] },
   statusNote: str,
-  address: obj({ value: str, ...sourced }),
+  // unit lives inside address: a separate sourced field made the grammar too large again.
+  address: obj({ value: str, unit: str, ...sourced }),
   buildingUsage: obj({ value: str, ...sourced }),
   exclusiveArea: obj({ value: str, ...sourced }),
   owners: obj({ items: { type: "array", items: obj({ role: str, name: str, share: str }) }, ...sourced }),
@@ -573,6 +600,7 @@ const SYSTEM_PROMPT = `당신은 한국 부동산 등기사항전부증명서(�
 
 [값]
 - address: 표제부(1동의 건물의 표시)의 "소재지번" 지번 주소를 시도부터 지번까지만 적습니다(건물 이름·동·호 제외). 도로명주소는 쓰지 않습니다.
+- address.unit: 이 집의 동·호수를 서류 표기 그대로 적습니다. 1동 표제부 건물명칭의 동(예: "제101동", 없으면 생략)과 전유부분 건물번호(예: "제12층 제1203호")를 이어서 "제101동 제12층 제1203호"처럼 적습니다. address.quote에는 지번 주소 문장과 동·호수 문장을 " / "로 이어 적습니다.
 - buildingUsage: 1동 건물내역 중 구조·층수·용도가 적힌 첫 줄(예: "철근콘크리트구조 … 15층 아파트").
 - exclusiveArea: 전유부분 건물내역의 면적(예: "철근콘크리트구조 84.95㎡").
 - owners: 말소되지 않은 마지막 소유권 기재(보존 또는 이전)의 권리자. role은 서류 표기 그대로(소유자, 공유자, 수탁자 등), share는 지분 표기(없으면 "").
