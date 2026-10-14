@@ -6,6 +6,7 @@ import {
   checkKeys,
   houseTypeFromUsage,
   parseArea,
+  parseUnit,
   parseWon,
   splitAddress,
   toFormPrefill,
@@ -433,5 +434,60 @@ describe("checkUpload", () => {
     const r = checkUpload(files);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toContain(text);
+  });
+});
+
+describe("parseUnit (v0.4: 동·호수 for the address check)", () => {
+  it.each([
+    ["제101동 제12층 제1203호", { dong: "101", ho: "1203" }],
+    ["가상아파트 제101동 제12층 제1203호", { dong: "101", ho: "1203" }],
+    ["101동 1203호", { dong: "101", ho: "1203" }],
+    ["제3층 제302호", { dong: null, ho: "302" }],
+    ["제A동 제5층 제501호", { dong: "A", ho: "501" }],
+    ["가동 제2층 제201호", { dong: "가", ho: "201" }],
+    ["제지하1층 제B101호", { dong: null, ho: "B101" }],
+  ])("%j -> %j", (text, unit) => {
+    expect(parseUnit(text)).toEqual(unit);
+  });
+
+  it.each(["", "제101동", "제12층", "가락동 9101"])("%j -> null (no 호수)", (text) => {
+    expect(parseUnit(text)).toBeNull();
+  });
+});
+
+describe("buildReview: 동·호수 (v0.4)", () => {
+  const withUnit = (unit: string | null) => {
+    const raw = villa();
+    raw.address = { ...raw.address, unit };
+    return okReview(raw);
+  };
+
+  it("reads 동·호수 from the address and keeps the address quote as evidence", () => {
+    const r = withUnit("제3층 제302호");
+    expect(r.unit?.value).toEqual({ text: "제3층 제302호", dong: null, ho: "302" });
+    expect(r.unit?.needsCheck).toBe(false);
+    expect(r.unit?.evidence).toEqual(r.address.evidence);
+  });
+
+  it("flags a missing 동·호수 and lists it for checking", () => {
+    const r = withUnit(null);
+    expect(r.unit?.value).toBeNull();
+    expect(r.unit?.needsCheck).toBe(true);
+    expect(checkKeys(r)).toContain("unit");
+  });
+
+  it("flags 동·호수 text without a 호수", () => {
+    const r = withUnit("제101동");
+    expect(r.unit?.value).toBeNull();
+    expect(r.unit?.needsCheck).toBe(true);
+  });
+
+  it("passes the 동·호수 on to the form", () => {
+    expect(toFormPrefill(withUnit("제101동 제12층 제1203호")).registryUnit).toEqual({ dong: "101", ho: "1203" });
+  });
+
+  it("rejects a 동·호수 that is not text", () => {
+    const raw = villa();
+    expect(validateRawExtraction({ ...raw, address: { ...raw.address, unit: 302 } }).ok).toBe(false);
   });
 });
