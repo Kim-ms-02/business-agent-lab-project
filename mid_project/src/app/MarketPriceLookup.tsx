@@ -16,11 +16,14 @@ const SIDOS = [...new Set(REGIONS.map((r) => r.sido))];
 
 // onEstimate receives null when a lookup yields no estimate, so a stale estimate can be cleared.
 // initial holds values read from an uploaded 등기부; the parent remounts this component (key) to apply new ones.
+// onSelect reports the chosen 집 종류 and 시군구 code, which the 보증보험 check needs (v0.4).
 export default function MarketPriceLookup({
   onEstimate,
+  onSelect,
   initial,
 }: {
   onEstimate: (manwon: number | null) => void;
+  onSelect?: (sel: { type: HouseType; lawdCd: string }) => void;
   initial?: FormPrefill["lookup"];
 }) {
   const [type, setType] = useState<HouseType>(initial?.type ?? "apartment");
@@ -76,7 +79,11 @@ export default function MarketPriceLookup({
       <div className={styles.checks} role="radiogroup" aria-label="집 종류">
         {(Object.keys(HOUSE_TYPE_LABELS) as HouseType[]).map((t) => (
           <label key={t} className={styles.check}>
-            <input type="radio" name="houseType" checked={type === t} onChange={() => setType(t)} />
+            <input type="radio" name="houseType" checked={type === t}
+              onChange={() => {
+                setType(t);
+                onSelect?.({ type: t, lawdCd });
+              }} />
             {HOUSE_TYPE_LABELS[t]}
           </label>
         ))}
@@ -86,7 +93,11 @@ export default function MarketPriceLookup({
         <div className={styles.field}>
           <label htmlFor="sido" className={styles.label}>시/도</label>
           <select id="sido" className={styles.input} value={sido}
-            onChange={(e) => { setSido(e.target.value); setLawdCd(""); }}>
+            onChange={(e) => {
+              setSido(e.target.value);
+              setLawdCd("");
+              onSelect?.({ type, lawdCd: "" });
+            }}>
             <option value="">선택</option>
             {SIDOS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -94,7 +105,10 @@ export default function MarketPriceLookup({
         <div className={styles.field}>
           <label htmlFor="sigungu" className={styles.label}>시/군/구</label>
           <select id="sigungu" className={styles.input} value={lawdCd} disabled={!sido}
-            onChange={(e) => setLawdCd(e.target.value)}>
+            onChange={(e) => {
+              setLawdCd(e.target.value);
+              onSelect?.({ type, lawdCd: e.target.value });
+            }}>
             <option value="">선택</option>
             {sigungus.map((r) => <option key={r.code} value={r.code}>{r.sigungu}</option>)}
           </select>
