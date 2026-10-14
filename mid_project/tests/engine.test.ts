@@ -206,3 +206,230 @@ describe("input errors", () => {
     expect(r.errors.map((e) => e.field)).toEqual(["mortgageMaxTotal"]);
   });
 });
+
+// ---------- v0.4: contract vs 등기부 (rule 4), 주소 대조, 보증보험 (rule 6) ----------
+// 테스트용 가상 데이터: names and addresses mirror tests/fixtures/fake-11 ~ fake-15.
+
+describe("rule 4: 집주인 대조", () => {
+  const owner = { ownerNames: ["홍길동"], landlordNames: ["홍길동"], isAgentContract: false };
+
+  it("same name -> 일치, no hit, grade unchanged", () => {
+    const r = run(owner);
+    expect(r.landlord).toEqual({ result: "일치", reasons: [], needs: [] });
+    expect(ruleIds(r)).not.toContain("landlord");
+    expect(r.grade).toBe("안전");
+  });
+
+  it.each([
+    ["홍 길 동", "홍길동"],
+    ["홍길동(洪吉童)", "홍길동"],
+    ["홍·길동", "홍길동"],
+  ])("normalizes %j to match %j", (landlord, registered) => {
+    expect(run({ ...owner, landlordNames: [landlord], ownerNames: [registered] }).landlord.result).toBe("일치");
+  });
+
+  it("different name -> 위험: 집주인 불일치", () => {
+    const r = run({ ...owner, landlordNames: ["김철수"] });
+    expect(r.landlord.result).toBe("불일치");
+    expect(r.grade).toBe("위험");
+    const hit = r.hits.find((h) => h.ruleId === "landlord");
+    expect(hit?.grade).toBe("위험");
+    expect(hit?.reason).toContain("위험: 집주인 불일치");
+    expect(hit?.reason).toContain("김철수");
+  });
+
+  it("one letter off is still a mismatch (names were confirmed by the user)", () => {
+    expect(run({ ...owner, landlordNames: ["홍길둥"] }).landlord.result).toBe("불일치");
+  });
+
+  it("joint ownership, landlord is only one of the owners -> 주의 + 확인 필요", () => {
+    const r = run({ ownerNames: ["김영희", "박철수"], landlordNames: ["김영희"], isAgentContract: false });
+    expect(r.landlord.result).toBe("확인 필요");
+    expect(r.grade).toBe("주의");
+    const hit = r.hits.find((h) => h.ruleId === "landlord");
+    expect(hit?.grade).toBe("주의");
+    expect(hit?.reason).toContain("확인 필요");
+    expect(hit?.reason).toContain("공동명의");
+  });
+
+  it("joint ownership with every owner on the contract -> 일치", () => {
+    expect(
+      run({ ownerNames: ["김영희", "박철수"], landlordNames: ["박철수", "김영희"], isAgentContract: false }).landlord.result,
+    ).toBe("일치");
+  });
+
+  it("agent contract -> 확인 필요 even when the name matches", () => {
+    const r = run({ ...owner, isAgentContract: true });
+    expect(r.landlord.result).toBe("확인 필요");
+    expect(r.landlord.reasons.join(" ")).toContain("대리인");
+  });
+
+  it("corporate owner (신탁회사 included) -> 확인 필요", () => {
+    const r = run({ ownerNames: ["샘플부동산신탁주식회사"], landlordNames: ["샘플부동산신탁주식회사"], isAgentContract: false });
+    expect(r.landlord.result).toBe("확인 필요");
+    expect(r.landlord.reasons.join(" ")).toContain("법인");
+  });
+
+  it("lists every 확인 필요 reason at once (fake-14: 공동명의 + 대리인)", () => {
+    const r = run({ ownerNames: ["김영희", "박철수"], landlordNames: ["김영희"], isAgentContract: true });
+    expect(r.landlord.reasons).toHaveLength(2);
+    expect(r.hits.filter((h) => h.ruleId === "landlord")).toHaveLength(1);
+  });
+
+  it("a mismatch outranks 확인 필요 (agent + different name -> 위험)", () => {
+    const r = run({ ...owner, landlordNames: ["김철수"], isAgentContract: true });
+    expect(r.landlord.result).toBe("불일치");
+    expect(r.grade).toBe("위험");
+  });
+
+  it("without contract or 등기부 names -> no result, the needed values are listed, grade unaffected", () => {
+    const r = run({ ownerNames: ["홍길동"] });
+    expect(r.landlord).toEqual({ result: null, reasons: [], needs: ["임대인 이름"] });
+    expect(r.grade).toBe("안전");
+    expect(r.missing).toEqual([]);
+  });
+});
+
+describe("주소 대조 (지번·동·호수)", () => {
+  const base = {
+    contractUnit: { jibun: "9101", dong: "101", ho: "1203" },
+    registryUnit: { jibun: "9101", dong: "101", ho: "1203" },
+  };
+
+  it("same 지번·동·호수 -> 일치", () => {
+    const r = run(base);
+    expect(r.address).toEqual({ result: "일치", reasons: [], needs: [] });
+    expect(ruleIds(r)).not.toContain("address");
+  });
+
+  it("ignores 제·동·호·번지 and spaces", () => {
+    const r = run({
+      contractUnit: { jibun: "9101번지", dong: "제101동", ho: "제 1203호" },
+      registryUnit: { jibun: "9101", dong: "101", ho: "1203" },
+    });
+    expect(r.address.result).toBe("일치");
+  });
+
+  it.each([
+    ["호수", { ho: "1204" }],
+    ["동", { dong: "102" }],
+    ["지번", { jibun: "9102" }],
+  ])("different %s -> 주의 + 확인 필요: 주소 불일치", (part, patch) => {
+    const r = run({ ...base, contractUnit: { ...base.contractUnit, ...patch } });
+    expect(r.address.result).toBe("불일치");
+    expect(r.grade).toBe("주의");
+    const hit = r.hits.find((h) => h.ruleId === "address");
+    expect(hit?.grade).toBe("주의");
+    expect(hit?.reason).toContain("확인 필요: 주소 불일치");
+    expect(hit?.reason).toContain(part);
+  });
+
+  it("a 동 on one side only is a difference", () => {
+    expect(run({ ...base, contractUnit: { ...base.contractUnit, dong: null } }).address.result).toBe("불일치");
+  });
+
+  it("villa without 동 on both sides -> 일치", () => {
+    const unit = { jibun: "9202", dong: null, ho: "302" };
+    expect(run({ contractUnit: unit, registryUnit: unit }).address.result).toBe("일치");
+  });
+
+  it("missing side -> needs, no hit", () => {
+    const r = run({ contractUnit: base.contractUnit });
+    expect(r.address).toEqual({ result: null, reasons: [], needs: ["등기부 주소(동·호수)"] });
+  });
+});
+
+describe("계약서 보증금 vs 판정 보증금", () => {
+  it("reports a difference", () => {
+    expect(run({ deposit: 20000, contractDeposit: 40000 }).depositMismatch).toEqual({ contract: 40000, entered: 20000 });
+  });
+
+  it("no report when equal or when the contract value is missing", () => {
+    expect(run({ deposit: 20000, contractDeposit: 20000 }).depositMismatch).toBeNull();
+    expect(run({ deposit: 20000 }).depositMismatch).toBeNull();
+  });
+});
+
+describe("rule 6: 보증보험 가입 가능성", () => {
+  // 수도권 apartment: deposit 2억, 근저당 0, 시세 4억 -> every condition passes.
+  const ok = { deposit: 20000, mortgageMaxTotal: 0, marketPrice: 40000, houseType: "apartment" as const, lawdCd: "11710" };
+
+  it("within every limit -> 기준 안에 있음, shows the source and the 추정 시세 note", () => {
+    const g = run(ok).guarantee;
+    expect(g.result).toBe("기준 안에 있음");
+    expect(g.housePrice).toBe(40000);
+    expect(g.source.url).toContain("khug.or.kr");
+    expect(g.notes.join(" ")).toContain("추정 시세 기준");
+  });
+
+  it.each([
+    ["11710", 70001, true], // 서울 송파구
+    ["11710", 70000, false],
+    ["41135", 80000, true], // 경기 성남시분당구 (fake-15)
+    ["28110", 70001, true], // 인천
+    ["26110", 50001, true], // 부산: 그 외 지역 5억
+    ["26110", 50000, false],
+  ])("deposit limit: %s, 보증금 %i만원 -> over %s", (lawdCd, deposit, over) => {
+    const g = run({ ...ok, lawdCd, deposit, marketPrice: 1_000_000 }).guarantee;
+    expect(g.result).toBe(over ? "가입 가능성 낮음" : "기준 안에 있음");
+    if (over) expect(g.reasons.join(" ")).toContain("한도");
+  });
+
+  it("(근저당 + 보증금) above 90% of the house price -> 가입 가능성 낮음", () => {
+    expect(run({ ...ok, deposit: 30000, mortgageMaxTotal: 6000 }).guarantee.result).toBe("기준 안에 있음"); // 36000 = 90%
+    const g = run({ ...ok, deposit: 30000, mortgageMaxTotal: 6001 }).guarantee;
+    expect(g.result).toBe("가입 가능성 낮음");
+    expect(g.reasons.join(" ")).toContain("90%");
+  });
+
+  it("근저당 above 60% of 주택가액 (주택가격 × 90%) -> 가입 가능성 낮음", () => {
+    // 40000 × 0.9 × 0.6 = 21600
+    expect(run({ ...ok, deposit: 1000, mortgageMaxTotal: 21600 }).guarantee.reasons.join(" ")).not.toContain("60%");
+    const g = run({ ...ok, deposit: 1000, mortgageMaxTotal: 21601 }).guarantee;
+    expect(g.result).toBe("가입 가능성 낮음");
+    expect(g.reasons.join(" ")).toContain("60%");
+  });
+
+  it("villa uses 공시가격 × 140% only, never the 시세", () => {
+    const villa = { ...ok, houseType: "rowhouse" as const, marketPrice: 1_000_000, publicPrice: 20000 };
+    const g = run(villa).guarantee;
+    expect(g.housePrice).toBe(28000);
+    // 28000 × 0.9 = 25200
+    expect(run({ ...villa, deposit: 25200 }).guarantee.result).toBe("기준 안에 있음");
+    expect(run({ ...villa, deposit: 25201 }).guarantee.result).toBe("가입 가능성 낮음");
+  });
+
+  it("villa without 공시가격 -> 판단하려면 공시가격이 필요해요, nothing made up", () => {
+    const g = run({ ...ok, houseType: "rowhouse" }).guarantee;
+    expect(g.result).toBeNull();
+    expect(g.needs).toEqual(["공시가격"]);
+    expect(g.housePrice).toBeNull();
+  });
+
+  it("officetel uses the 시세 and always shows the officetel notice", () => {
+    const g = run({ ...ok, houseType: "officetel" }).guarantee;
+    expect(g.housePrice).toBe(40000);
+    expect(g.notes.join(" ")).toContain("국세청 기준시가");
+    expect(g.notes.join(" ")).toContain("주거용");
+  });
+
+  it("a limit already broken is reported even when other values are missing", () => {
+    const g = run({ deposit: 80000, lawdCd: "41135", houseType: "officetel", marketPrice: undefined, mortgageMaxTotal: undefined })
+      .guarantee;
+    expect(g.result).toBe("가입 가능성 낮음");
+    expect(g.needs).toEqual(["매매시세", "근저당 채권최고액 합계"]);
+  });
+
+  it("missing 주소 and 집 종류 -> listed as needs", () => {
+    const g = run({ ...ok, lawdCd: undefined, houseType: undefined }).guarantee;
+    expect(g.result).toBeNull();
+    expect(g.needs).toEqual(["주소(시군구)", "집 종류"]);
+  });
+
+  it("is a separate warning: it never changes the grade", () => {
+    const r = run({ ...ok, deposit: 80000, marketPrice: 1_000_000 });
+    expect(r.guarantee.result).toBe("가입 가능성 낮음");
+    expect(r.grade).toBe("안전");
+    expect(r.hits).toEqual([]);
+  });
+});
