@@ -107,6 +107,21 @@ export function splitByHeading(html) {
   return parts;
 }
 
+// Some PDFs space out every letter ("법 의 보 호 를"), which hides the words from bigram search.
+// A line of 6+ pieces where most pieces are single Korean letters gets those letters joined again.
+/** @param {string} text @returns {string} */
+export function collapseLetterSpacing(text) {
+  return text
+    .split("\n")
+    .map((line) => {
+      const pieces = line.split(" ").filter(Boolean);
+      const letters = pieces.filter((p) => /^[가-힣]$/.test(p)).length;
+      if (pieces.length < 6 || letters / pieces.length <= 0.6) return line;
+      return pieces.reduce((out, p, i) => (i > 0 && [...p].length === 1 && [...pieces[i - 1]].length === 1 ? out + p : out ? `${out} ${p}` : p), "");
+    })
+    .join("\n");
+}
+
 // PDF -> text of each page (page 1 first). Uses PDF.js; CMaps are needed for CJK fonts.
 /** @param {string} path @returns {Promise<string[]>} */
 export async function pdfPages(path) {
@@ -127,7 +142,7 @@ export async function pdfPages(path) {
     const page = await doc.getPage(n);
     const content = await page.getTextContent();
     const text = content.items.map((it) => ("str" in it ? it.str + (it.hasEOL ? "\n" : "") : "")).join("");
-    pages.push(text.split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).filter(Boolean).join("\n"));
+    pages.push(collapseLetterSpacing(text.split("\n").map((l) => l.replace(/[ \t]+/g, " ").trim()).filter(Boolean).join("\n")));
   }
   await task.destroy();
   return pages;
