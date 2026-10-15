@@ -2,6 +2,7 @@
 // (국가법령정보센터 page header, 안내서 running header with the printed page number, 별지 page).
 import { describe, expect, it } from "vitest";
 import {
+  collapseLetterSpacing,
   pageParts,
   parsePageList,
   parseSourcesTable,
@@ -153,5 +154,26 @@ describe("toChunks: PDF 쪽", () => {
       ["guide#PDF1쪽", "PDF 1쪽(쪽 번호 없음)", [1]],
       ["guide#5쪽", "5쪽(별지: 계약갱신 거절통지서)", [7]],
     ]);
+  });
+});
+
+describe("collapseLetterSpacing (글자마다 띄어진 줄 붙이기)", () => {
+  it("joins a line where almost every Korean letter stands alone", () => {
+    expect(collapseLetterSpacing("법 의 보 호 를 받 기 위 한 중 요 사 항 ! 반 드 시 확 인 하 세 요")).toBe("법의보호를받기위한중요사항!반드시확인하세요");
+    expect(collapseLetterSpacing("연 락 처 연 락 처")).toBe("연락처연락처");
+  });
+
+  it("keeps the space next to a longer word", () => {
+    expect(collapseLetterSpacing("보 증 금 금 원정(\\ )")).toBe("보증금금 원정(\\ )");
+  });
+
+  it("leaves normal sentences alone, even with a few one-letter words", () => {
+    const line = "① 임차인이 주택의 인도와 주민등록을 마친 때에는 그 다음날부터 제3자에게 임차권을 주장할 수 있고";
+    expect(collapseLetterSpacing(line)).toBe(line);
+    expect(collapseLetterSpacing("수리 필요 시설 □ 없음 □ 있음")).toBe("수리 필요 시설 □ 없음 □ 있음");
+  });
+
+  it("works line by line", () => {
+    expect(collapseLetterSpacing("제목\n주 택 임 대 차 관 련 분 쟁 은\n본문 그대로")).toBe("제목\n주택임대차관련분쟁은\n본문 그대로");
   });
 });
