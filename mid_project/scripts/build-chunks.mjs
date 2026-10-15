@@ -6,10 +6,12 @@ import { extname, join, resolve } from "node:path";
 import {
   garbledRatio,
   htmlToText,
+  pageParts,
   parseSourcesTable,
   pdfPages,
   splitByArticle,
   splitByHeading,
+  splitLawPages,
   toChunks,
 } from "./chunking.mjs";
 
@@ -29,17 +31,22 @@ for (const source of sources) {
   }
   const ext = extname(source.file).toLowerCase();
   let parts;
+  let skipped = [];
   if (ext === ".pdf") {
-    if (source.unit !== "쪽") problems.push(`${source.id}: PDF는 '쪽' 단위로 나눕니다 (표에는 ${source.unit})`);
-    parts = (await pdfPages(path)).map((text, i) => ({ locator: `${i + 1}쪽`, text }));
+    const pages = await pdfPages(path);
+    if (source.unit === "조문") parts = splitLawPages(pages);
+    else if (source.unit === "쪽") ({ parts, skipped } = pageParts(pages, source.skipPages ?? []));
+    else parts = [];
+    const outside = (source.skipPages ?? []).filter((n) => n > pages.length);
+    if (outside.length > 0) problems.push(`${source.id}: 뺄 쪽 ${outside.join(", ")}이(가) 문서에 없습니다 (${pages.length}쪽)`);
   } else {
     const raw = readFileSync(path, "utf8");
     const isHtml = ext === ".html" || ext === ".htm";
     if (source.unit === "조문") parts = splitByArticle(isHtml ? htmlToText(raw) : raw);
     else if (source.unit === "소제목") parts = isHtml ? splitByHeading(raw) : [];
     else parts = [];
-    if (parts.length === 0) problems.push(`${source.id}: '${source.unit}' 단위로 나눈 조각이 없습니다`);
   }
+  if (parts.length === 0) problems.push(`${source.id}: '${source.unit}' 단위로 나눈 조각이 없습니다`);
 
   const docChunks = toChunks(source, parts);
   const worst = Math.max(0, ...docChunks.map((c) => garbledRatio(c.text)));
@@ -47,13 +54,14 @@ for (const source of sources) {
   if (worst > GARBLED_LIMIT) problems.push(`${source.id}: 한글이 깨진 조각이 있습니다 (최대 ${(worst * 100).toFixed(1)}%)`);
   console.log(
     `${source.id}: ${docChunks.length}개 조각 (${source.unit})` +
+      (skipped.length > 0 ? `, 뺀 쪽 ${skipped.join("·")}` : "") +
       (empty > 0 ? `, 빈 ${source.unit} ${empty}개 제외` : "") +
       `, 깨진 글자 최대 ${(worst * 100).toFixed(1)}%`,
   );
   chunks.push(...docChunks);
 }
 
-const sourceList = sources.map(({ id, title, org, url, checkedDate, unit }) => ({ id, title, org, url, checkedDate, unit }));
+const sourceList = sources.map(({ id, title, org, url, checkedDate, unit, note }) => ({ id, title, org, url, checkedDate, unit, ...(note ? { note } : {}) }));
 writeFileSync(join(DIR, "chunks.json"), JSON.stringify({ sources: sourceList, chunks }, null, 1) + "\n");
 console.log(`\n총 ${chunks.length}개 조각 → docs/sources/chunks.json`);
 if (problems.length > 0) {

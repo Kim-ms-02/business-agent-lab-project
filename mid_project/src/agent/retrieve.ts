@@ -12,6 +12,7 @@ export type Chunk = {
   checkedDate: string; // YYYY-MM-DD
   locator: string; // 쪽 or 조문, e.g. "12쪽", "제3조의2(보증금의 회수)"
   text: string;
+  pdfPages?: number[]; // PDF page order, kept when it differs from the printed page or a 조문 spans pages
 };
 
 export type Hit = { chunk: Chunk; score: number };
