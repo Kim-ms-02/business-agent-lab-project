@@ -103,6 +103,15 @@ const CASES = {
     contractDate: "2026년 10월 13일",
     landlordName: "샘플부동산신탁주식회사", landlordId: "110111-*******", landlordAddr: "서울특별시 가상구 신탁로 8",
   },
+  "16": { // demo (v0.5): same as fake-15, but a realistic deposit of 2억
+    address: "경기도 성남시 분당구 정자동 9303 가상오피스텔 제805호",
+    building: "철근콘크리트구조 업무시설(오피스텔), 주거용 / 전용면적 33.12㎡", part: "전부",
+    deposit: "금 이억원정 (₩200,000,000)", downPayment: "금 이천만원정 (₩20,000,000) 계약 시 지급",
+    balance: "금 일억팔천만원정 (₩180,000,000) 2026년 12월 1일 지급",
+    period: "2026년 12월 1일부터 2028년 11월 30일까지 (24개월)", special: "주거용으로 사용한다.",
+    contractDate: "2026년 10월 13일",
+    landlordName: "샘플부동산신탁주식회사", landlordId: "110111-*******", landlordAddr: "서울특별시 가상구 신탁로 8",
+  },
 };
 const c = CASES[new URLSearchParams(location.search).get("id")] ?? CASES["11"];
 for (const [k, v] of Object.entries(c)) {

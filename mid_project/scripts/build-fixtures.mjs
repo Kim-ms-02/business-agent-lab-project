@@ -1,5 +1,6 @@
 // Renders the fake 등기부 HTML sources in tests/fixtures/ into PDF / PNG / JPG with headless Chrome.
-// Usage: node scripts/build-fixtures.mjs [registry|contract]   (default: both)
+// Usage: node scripts/build-fixtures.mjs [registry|contract|fake-NN]   (default: both groups)
+// fake-NN builds that one file only, so the other committed files are not rewritten.
 // Set CHROME=/path/to/chrome if it is not in the default place.
 // macOS only for the JPG step (uses the built-in `sips`).
 import { execFileSync } from "node:child_process";
@@ -27,10 +28,14 @@ const contractJobs = [
   { src: "fake-contract.html", query: "id=13", hash: "photo,slightly-blurry", out: "fake-13-contract-unit-mismatch.png", kind: "png", size: "1240,1754" },
   { src: "fake-contract.html", query: "id=14", out: "fake-14-contract-coowner-agent.pdf", kind: "pdf" },
   { src: "fake-contract.html", query: "id=15", hash: "photo,slightly-blurry", out: "fake-15-contract-trust-high-deposit.jpg", kind: "jpg", size: "1240,1754" },
+  // v0.5 demo: fake-15 with a 2억 deposit
+  { src: "fake-contract.html", query: "id=16", out: "fake-16-contract-trust-demo.pdf", kind: "pdf" },
 ];
 
 const group = process.argv[2];
-const jobs = [...(group !== "contract" ? registryJobs : []), ...(group !== "registry" ? contractJobs : [])];
+const jobs = group?.startsWith("fake-")
+  ? [...registryJobs, ...contractJobs].filter((j) => j.out.startsWith(group))
+  : [...(group !== "contract" ? registryJobs : []), ...(group !== "registry" ? contractJobs : [])];
 
 const profile = mkdtempSync(join(tmpdir(), "fixtures-chrome-"));
 try {
