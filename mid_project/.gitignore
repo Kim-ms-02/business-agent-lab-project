@@ -32,3 +32,8 @@ tests/fixtures/*
 !tests/fixtures/fake-*
 !tests/fixtures/*.fake.*
 !tests/fixtures/README.md
+
+# official documents (v0.5): keep the originals local, commit only the chunks and the source list
+docs/sources/*
+!docs/sources/SOURCES.md
+!docs/sources/chunks.json
