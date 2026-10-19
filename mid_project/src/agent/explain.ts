@@ -290,12 +290,16 @@ export type ReportTopic = {
 export const NO_DOCS_MESSAGE = "관련 공식 안내를 찾지 못했어요";
 export const NO_EXPLANATION_MESSAGE = "설명을 만들지 못했어요";
 
+// An approved default question with the chunk it rests on. A plain string is cited from the topic's best chunk.
+export type DefaultQuestion = string | { text: string; source: string };
+
 // Puts the checked output next to each topic. Topics with no documents get nothing made up;
-// a topic left without a question gets its approved default question, sourced from its best chunk.
+// a topic left without a question gets its approved default questions. One whose own chunk was not
+// found for the topic is hidden, so a question is never shown with a source that does not back it.
 export function finalizeReport(
   contexts: TopicContext[],
   output: AiOutput,
-  defaultQuestions: Partial<Record<TopicId, string[]>>,
+  defaultQuestions: Partial<Record<string, DefaultQuestion[]>>,
 ): ReportTopic[] {
   return contexts.map(({ topic, chunks }) => {
     if (chunks.length === 0) {
@@ -305,7 +309,11 @@ export function finalizeReport(
     const explanation = t?.explanation ?? [];
     let questions = (t?.questions ?? []).map((q) => ({ ...q, fallback: false }));
     if (questions.length === 0) {
-      questions = (defaultQuestions[topic.id] ?? []).map((text) => ({ text, sources: [chunks[0].id], fallback: true }));
+      questions = (defaultQuestions[topic.id] ?? []).flatMap((q) =>
+        typeof q === "string" ? [{ text: q, sources: [chunks[0].id], fallback: true }]
+        : chunks.some((c) => c.id === q.source) ? [{ text: q.text, sources: [q.source], fallback: true }]
+        : [],
+      );
     }
     return explanation.length > 0
       ? { topic, status: "ok", explanation, questions, chunks }
