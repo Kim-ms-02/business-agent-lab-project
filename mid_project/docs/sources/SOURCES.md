@@ -4,7 +4,7 @@
 
 | id | 파일 | 문서명 | 기관 | 주소 | 확인한 날짜 | 나누는 단위 | 뺄 쪽 | 비고 |
 |---|---|---|---|---|---|---|---|---|
-| molit-guide | molit-guide.pdf | 전세계약 제대로 알고 하기 (전세사기 피해예방 종합안내서) | 국토교통부 (감수: 경찰청·한국공인중개사협회) | https://khug.or.kr/jeonse/web/s05/s050101.jsp?mode=S&currentPage=1&articleId=36014 | 2026-10-15 | 쪽 | 3·8·13·98·99·106·111·115·116 | |
+| molit-guide | molit-guide.pdf | 전세계약 제대로 알고 하기 (전세사기 피해예방 종합안내서) | 국토교통부 (감수: 경찰청·한국공인중개사협회) | https://khug.or.kr/jeonse/web/s05/s050101.jsp?mode=S&currentPage=1&articleId=36014 | 2026-10-15 | 쪽 | 3·8·13·98·99·106·111·113·115·116 | |
 | molit-press-333 | molit-press-333.pdf | 3·3·3법칙만 챙겨도 안심 전세계약 가능해요 (보도자료, 2025.8.27 배포) | 국토교통부 | https://www.molit.go.kr/USR/NEWS/m_71/lst.jsp | 2026-10-15 | 쪽 | 4-6 | |
 | housing-lease-act | housing-lease-act.pdf | 주택임대차보호법 (시행 2026.1.2, 법률 제21065호) | 법제처 국가법령정보센터 | https://www.law.go.kr/법령/주택임대차보호법 | 2026-10-15 | 조문 | | |
 | housing-lease-decree | housing-lease-decree.pdf | 주택임대차보호법 시행령 (시행 2026.7.1, 대통령령 제36423호) | 법제처 국가법령정보센터 | https://www.law.go.kr/법령/주택임대차보호법시행령 | 2026-10-15 | 조문 | | |
