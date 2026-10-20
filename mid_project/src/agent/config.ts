@@ -27,6 +27,10 @@ export const EXPLAIN_MAX_TOKENS = 16000;
 // this many more tries, then the remaining bad sentences are dropped.
 export const EXPLAIN_MAX_RETRIES = 2;
 
+// One call is given up after this long (no automatic SDK retry), and the user sees the plain timeout
+// message. Worst case is (1 + EXPLAIN_MAX_RETRIES) calls, so /api/explain allows 300 seconds.
+export const EXPLAIN_CALL_TIMEOUT_MS = 90_000;
+
 // BM25 over Korean character bigrams (standard defaults).
 export const BM25 = { k1: 1.2, b: 0.75 } as const;
 

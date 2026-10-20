@@ -1,6 +1,7 @@
 // Keyword search over the official-document chunks (docs/sources/chunks.json): BM25 on Korean character
 // bigrams. Bigrams inside each word let "근저당" match "근저당이", "근저당을" without a morphological analyzer.
 // Search results are only used to write explanations; they never change the risk grade.
+import official from "../../docs/sources/chunks.json";
 import { BM25 } from "./config";
 
 export type Chunk = {
@@ -69,4 +70,12 @@ export function search(index: Index, query: string, k: number): Hit[] {
   });
   // Array.prototype.sort is stable, so equal scores keep the chunk order.
   return scored.sort((x, y) => y.score - x.score).slice(0, k);
+}
+
+let officialIndex: Index | null = null;
+
+// The index over the committed official chunks, built once per server process.
+export function getOfficialIndex(): Index {
+  officialIndex ??= buildIndex((official as unknown as { chunks: Chunk[] }).chunks);
+  return officialIndex;
 }
