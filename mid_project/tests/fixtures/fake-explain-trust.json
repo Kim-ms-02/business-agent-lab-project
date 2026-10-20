@@ -1,0 +1,47 @@
+{
+  "note": "테스트용 가상 응답: 사람이 직접 쓴 예시 AI 응답(신탁 데모). 실제 API 응답이 아닙니다.",
+  "response": {
+    "topics": [
+      {
+        "topicId": "jeonseRatio",
+        "explanation": [
+          { "text": "보증금 2억 원은 매매시세 2억 7,000만 원의 74.1%예요.", "sources": ["molit-guide#16쪽"] },
+          { "text": "기준인 70% 이상이라 주의로 나왔어요.", "sources": ["molit-guide#16쪽"] }
+        ],
+        "questions": [{ "text": "대출금과 보증금을 더하면 집값을 넘지 않나요?", "sources": ["molit-guide#16쪽"] }]
+      },
+      {
+        "topicId": "titleIssues",
+        "explanation": [
+          { "text": "갑구에 신탁이 적혀 있어요.", "sources": ["molit-guide#21쪽"] },
+          { "text": "신탁등기가 있으면 신탁사의 동의가 제대로 이루어졌는지 꼭 확인해야 해요.", "sources": ["molit-guide#21쪽"] }
+        ],
+        "questions": [{ "text": "신탁원부와 신탁사의 동의서를 보여 주실 수 있나요?", "sources": ["molit-guide#21쪽"] }]
+      },
+      {
+        "topicId": "recentTransfer",
+        "explanation": [
+          { "text": "2026년 8월 20일에 소유권이 바뀌었어요.", "sources": ["molit-guide#41쪽"] },
+          { "text": "최근 3개월 안에 소유자가 바뀌어 주의로 나왔어요.", "sources": ["molit-guide#41쪽"] }
+        ],
+        "questions": [{ "text": "잔금 전에 갑구의 소유자가 그대로인지 다시 확인해도 될까요?", "sources": ["molit-guide#33쪽"] }]
+      },
+      {
+        "topicId": "landlord",
+        "explanation": [
+          { "text": "이 집의 소유자는 법인(회사)이에요.", "sources": ["molit-guide#30쪽"] },
+          { "text": "법인이 임대인이면 그 법인이 이 집을 임대할 자격이 있는지 확인해야 해요.", "sources": ["molit-guide#30쪽"] }
+        ],
+        "questions": [{ "text": "법인 대표자의 신분증과 인감증명서를 보여 주실 수 있나요?", "sources": ["molit-guide#30쪽"] }]
+      },
+      {
+        "topicId": "tenancy:전세권",
+        "explanation": [
+          { "text": "을구에 말소되지 않은 전세권이 1건 있어요.", "sources": ["molit-guide#102쪽"] },
+          { "text": "전세권은 전세금을 다른 채권자보다 먼저 돌려받을 수 있는 권리예요.", "sources": ["molit-guide#102쪽"] }
+        ],
+        "questions": [{ "text": "을구의 전세권은 언제 말소되나요?", "sources": ["molit-guide#102쪽"] }]
+      }
+    ]
+  }
+}
