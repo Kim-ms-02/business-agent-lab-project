@@ -21,9 +21,9 @@ export async function POST(request: Request) {
   try {
     // Which checks stopped how many sentences on each attempt (counts only, no text).
     const report = await explainReport(parsed.value, askClaude, {
-      onCheck: (c) =>
+      onCheck: (c, t) =>
         console.info(
-          `[explain] attempt=${c.attempt} failed_checks number=${c.number} no_source=${c.noSource} unknown_source=${c.unknownSource} format=${c.format}`,
+          `[explain] attempt=${c.attempt} failed_checks number=${c.number} no_source=${c.noSource} unknown_source=${c.unknownSource} format=${c.format} definition=${t.definition}`,
         ),
     });
     console.info(
