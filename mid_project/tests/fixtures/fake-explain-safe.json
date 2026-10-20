@@ -5,8 +5,8 @@
       {
         "topicId": "basics",
         "explanation": [
-          { "text": "입주와 전입신고를 마치면 다음 날부터 대항력이 생겨요.", "sources": ["molit-guide#22쪽"] },
-          { "text": "여기에 확정일자까지 받으면 우선변제권이 생겨요.", "sources": ["molit-guide#22쪽"] },
+          { "text": "입주하는 날 전입신고를 꼭 마치세요.", "sources": ["molit-guide#22쪽"] },
+          { "text": "계약 후에는 확정일자도 꼭 받으세요.", "sources": ["molit-guide#22쪽"] },
           { "text": "계약 후에는 확정일자를 받고, 이사 당일 전입신고를 마치세요.", "sources": ["molit-press-333#2쪽"] }
         ],
         "questions": [{ "text": "계약 전에 등기부를 함께 확인해 주실 수 있나요?", "sources": ["molit-press-333#2쪽"] }]

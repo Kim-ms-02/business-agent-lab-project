@@ -38,7 +38,7 @@
         "topicId": "tenancy:전세권",
         "explanation": [
           { "text": "을구에 말소되지 않은 전세권이 1건 있어요.", "sources": ["molit-guide#102쪽"] },
-          { "text": "전세권은 전세금을 다른 채권자보다 먼저 돌려받을 수 있는 권리예요.", "sources": ["molit-guide#102쪽"] }
+          { "text": "을구에 남은 전세권이 언제 말소되는지 확인하세요.", "sources": ["molit-guide#102쪽"] }
         ],
         "questions": [{ "text": "을구의 전세권은 언제 말소되나요?", "sources": ["molit-guide#102쪽"] }]
       }

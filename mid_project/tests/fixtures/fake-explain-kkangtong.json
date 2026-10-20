@@ -6,7 +6,7 @@
         "topicId": "jeonseRatio",
         "explanation": [
           { "text": "보증금 4억 원이 매매시세 4억 5,000만 원의 88.9%예요.", "sources": ["molit-guide#16쪽"] },
-          { "text": "대출금과 전세보증금을 더한 돈이 집값을 넘으면 깡통전세라고 해요.", "sources": ["molit-guide#16쪽"] },
+          { "text": "대출금과 전세보증금을 더한 돈이 집값을 넘지 않는지 꼭 확인하세요.", "sources": ["molit-guide#16쪽"] },
           { "text": "기준인 80% 이상이라 위험으로 나왔어요.", "sources": ["molit-guide#16쪽"] }
         ],
         "questions": [{ "text": "주변 비슷한 집의 매매 실거래가와 비교해 봐도 될까요?", "sources": ["molit-guide#16쪽"] }]
@@ -23,7 +23,7 @@
         "topicId": "guarantee",
         "explanation": [
           { "text": "근저당과 보증금의 합이 주택가격의 90%를 넘어 보증보험 가입 가능성이 낮아요.", "sources": ["hug-guarantee#2쪽"] },
-          { "text": "전세보증금반환보증은 전세계약이 끝났을 때 보증금 반환을 책임지는 보증상품이에요.", "sources": ["hug-guarantee#1쪽"] }
+          { "text": "계약 전에 전세보증금반환보증에 가입할 수 있는지 확인하세요.", "sources": ["hug-guarantee#1쪽"] }
         ],
         "questions": [{ "text": "계약 전에 보증기관에 가입 가능 여부를 물어봐도 될까요?", "sources": ["hug-guarantee#2쪽"] }]
       }
