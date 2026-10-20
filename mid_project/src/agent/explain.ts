@@ -466,13 +466,32 @@ export function parseAiOutput(text: string): AiOutput | null {
   return ok ? (v as AiOutput) : null;
 }
 
+// How many sentences each check stopped on one attempt; format is 1 when the answer was not the agreed JSON.
+// Counts only, so they can be logged without any text.
+export type CheckCounts = { attempt: number; number: number; noSource: number; unknownSource: number; format: number };
+
+function countChecks(attempt: number, problems: Problem[]): CheckCounts {
+  const count = (prefix: string) => problems.filter((p) => p.reasons.some((r) => r.startsWith(prefix))).length;
+  return {
+    attempt,
+    number: count("판정 결과나 인용한 문서에 없는 숫자"),
+    noSource: count("출처가 없어요"),
+    unknownSource: count("받지 않은 출처"),
+    format: 0,
+  };
+}
+
 export type ExplainArgs = { input: EngineInput; today: string; tenancies: TenancyFact[] };
 export type ExplainReport = { topics: ReportTopic[]; glossary: GlossaryEntry[]; attempts: number; dropped: number; usage: Usage };
 
 // Runs the rules again on the server, finds the chunks for each topic and asks the AI.
 // The AI only gets the grade, the topic facts (no names, 동·호수 or region) and the chunks.
 // A failed first call throws ExplainError; a failed retry keeps the last answer without its bad sentences.
-export async function explainReport(args: ExplainArgs, ask: Ask, index: Index = getOfficialIndex()): Promise<ExplainReport> {
+export async function explainReport(
+  args: ExplainArgs,
+  ask: Ask,
+  { index = getOfficialIndex(), onCheck }: { index?: Index; onCheck?: (counts: CheckCounts) => void } = {},
+): Promise<ExplainReport> {
   const result = evaluate(args.input, args.today);
   const contexts: TopicContext[] = buildTopics(result, args.tenancies).map((topic) => ({
     topic,
@@ -499,7 +518,11 @@ export async function explainReport(args: ExplainArgs, ask: Ask, index: Index = 
     usage.inputTokens += answer.usage.inputTokens;
     usage.outputTokens += answer.usage.outputTokens;
     const output = parseAiOutput(answer.text);
-    if (!output) throw new ExplainError("failed");
+    if (!output) {
+      onCheck?.({ ...countChecks(calls, []), format: 1 });
+      throw new ExplainError("failed");
+    }
+    onCheck?.(countChecks(calls, checkOutput(output, asked)));
     last = { output, text: answer.text };
     return output;
   };
