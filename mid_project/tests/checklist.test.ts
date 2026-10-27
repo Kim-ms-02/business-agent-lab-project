@@ -215,3 +215,60 @@ describe("맨 위 요약", () => {
     expect(summary.message).toBeNull();
   });
 });
+
+describe("을구 전세권·임차권등기 (2번)", () => {
+  const TENANCY_LINE = "을구에 전세권·임차권등기가 있어요. 직접 확인하세요";
+
+  it.each(["전세권", "임차권"] as const)("no ⚠ but a %s등기 -> 2 ❓ instead of ✅, grade unchanged", (kind) => {
+    const result = evaluate(DEMO_CASES.safe, DEMO_TODAY);
+    const items = buildChecklist(result, { ...withContract, tenancies: [{ kind }] }).items;
+    const s = statusOf(items, 2);
+    expect(s.kind).toBe("manual");
+    expect(s.message).toBe(TENANCY_LINE);
+    expect(items[1].questions.map((q) => q.text)).toContain(
+      kind === "전세권" ? "을구에 남은 전세권은 언제 말소되나요?" : "이전 세입자가 보증금을 돌려받지 못해 임차권등기를 한 것인가요? 지금은 돌려받았나요?",
+    );
+    expect(result.grade).toBe("안전");
+  });
+
+  it("2 already ⚠ -> stays ⚠ and the 을구 line is added", () => {
+    const items = demo("trust", { ...withContract, tenancies: [{ kind: "전세권" }] }).items;
+    expect(kinds(items)[2]).toBe("hit:위험");
+    expect(statusOf(items, 2).reasons).toContain(TENANCY_LINE);
+  });
+
+  it("no 전세권·임차권등기 -> 2 stays ✅", () => {
+    expect(statusOf(demo("safe", { ...withContract, tenancies: [] }).items, 2).kind).toBe("ok");
+  });
+});
+
+describe("대리인은 9번에서만 ⚠", () => {
+  const agent: ChecklistContext = { contract: { agent: true } };
+
+  it("대리인 only -> 8 ✅, 9 ⚠ 확인 필요, counted once; the grade is unchanged", () => {
+    const result = evaluate({ ...DEMO_CASES.safe, isAgentContract: true }, DEMO_TODAY);
+    const { items, summary } = buildChecklist(result, agent);
+    expect(kinds(items)[8]).toBe("ok");
+    expect(kinds(items)[9]).toBe("hit:확인 필요");
+    expect(statusOf(items, 9).reasons.join(" ")).toContain("대리인");
+    expect(summary.counts.hit).toBe(1);
+    expect(result.grade).toBe("주의");
+  });
+
+  it("대리인 + 다른 이름 -> 8 ⚠ 위험 without the 대리인 line, 9 ⚠ 확인 필요", () => {
+    const items = check({ ...DEMO_CASES.safe, isAgentContract: true, landlordNames: ["김철수"] }, agent).items;
+    expect(kinds(items)[8]).toBe("hit:위험");
+    expect(statusOf(items, 8).reasons.join(" ")).not.toContain("대리인이 계약해요");
+    expect(kinds(items)[9]).toBe("hit:확인 필요");
+  });
+
+  it("대리인 + 주소 불일치 -> 8 ⚠ 주의 for the address only", () => {
+    const items = check(
+      { ...DEMO_CASES.safe, isAgentContract: true, contractUnit: { jibun: "9101", dong: "101", ho: "1204" } },
+      agent,
+    ).items;
+    expect(kinds(items)[8]).toBe("hit:주의");
+    expect(statusOf(items, 8).reasons.join(" ")).toContain("주소");
+    expect(statusOf(items, 8).reasons.join(" ")).not.toContain("대리인이 계약해요");
+  });
+});
