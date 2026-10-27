@@ -1,6 +1,7 @@
 // v0.5 체크리스트 코치: the status of each of the 17 items. Items 1, 2, 5, 8 and 9 read the rule engine's result
 // only; this file never decides a grade or makes a number. Every other item is ❓ 직접 확인.
 import { DEFAULT_QUESTIONS } from "../agent/content";
+import type { TopicId } from "../agent/explain";
 import { JEONSE_RATIO } from "../rules/config";
 import type { EngineResult, Field, Grade, Hit, RuleId } from "../rules/engine";
 import { CHECKLIST_ITEMS, type ChecklistItem, type ChecklistQuestion, type StatusKind } from "./items";
@@ -180,4 +181,37 @@ export function buildChecklist(result: EngineResult, ctx: ChecklistContext): Che
       ? `확인한 항목에서는 위험이 보이지 않았어요 · 직접 확인할 항목 ${counts.manual}개가 남았어요`
       : null;
   return { items, summary: { counts, hitLabels, message } };
+}
+
+const LABEL_ORDER: HitLabel[] = ["위험", "주의", "확인 필요", "가입 가능성 낮음"];
+
+// The lines at the top of the checklist. Wording other than the approved "no risk" sentence is shown to the
+// user on the screen step for approval.
+export function summaryLines(summary: Checklist["summary"]): string[] {
+  const { counts, hitLabels, message } = summary;
+  const first =
+    message ??
+    `⚠ 걸린 항목 ${counts.hit}개 (${LABEL_ORDER.filter((l) => hitLabels[l]).map((l) => `${l} ${hitLabels[l]}`).join(" · ")}) · 직접 확인할 항목 ${counts.manual}개가 남았어요`;
+  return [first, ...(counts.input > 0 ? [`✏️ 값을 넣으면 확인할 수 있는 항목 ${counts.input}개가 있어요`] : [])];
+}
+
+// The checklist item an AI explanation topic belongs under; basics is shown above the stages.
+export function topicItemNo(topicId: TopicId): number | null {
+  switch (topicId) {
+    case "jeonseRatio":
+      return 1;
+    case "seniorBurden":
+    case "titleIssues":
+    case "recentTransfer":
+    case "tenancy:전세권":
+    case "tenancy:임차권":
+      return 2;
+    case "guarantee":
+      return 5;
+    case "landlord":
+    case "address":
+      return 8;
+    case "basics":
+      return null;
+  }
 }
