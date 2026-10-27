@@ -1,0 +1,237 @@
+.report {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.topBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  font-size: 1.4rem;
+}
+
+.largeText,
+.explainButton {
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
+  background: var(--background);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.largeText[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--background);
+}
+
+.explainButton:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.summary,
+.registry,
+.explainBar {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryLine {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.errors,
+.errorText {
+  color: var(--danger);
+}
+
+.errors {
+  padding-left: 20px;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+}
+
+.registryRows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.registryRow dd {
+  margin: 0;
+}
+
+.registryValue {
+  font-weight: 700;
+}
+
+.termLine {
+  font-size: 0.9rem;
+}
+
+.stage {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+.stageTitle {
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+}
+
+.stageCounts {
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.cards {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--status, var(--border));
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--background);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.cardTitle {
+  font-size: 1.05rem;
+}
+
+.badge {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--status);
+  border: 2px solid var(--status);
+  border-radius: 6px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.message {
+  font-weight: 700;
+}
+
+.reasons,
+.questions {
+  padding-left: 20px;
+}
+
+.label {
+  font-weight: 700;
+}
+
+.terms {
+  font-size: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.terms dt {
+  display: inline;
+  font-weight: 700;
+}
+
+.terms dt::after {
+  content: ": ";
+}
+
+.terms dd {
+  display: inline;
+  margin: 0;
+}
+
+.explanation {
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+
+.explanation ul {
+  padding-left: 20px;
+}
+
+.source {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Status colors; every status also has an icon and words, never color alone. */
+.ok {
+  --status: var(--safe);
+}
+
+.caution {
+  --status: var(--caution);
+}
+
+.danger {
+  --status: var(--danger);
+}
+
+.input {
+  --status: var(--accent);
+}
+
+.manual {
+  --status: var(--muted);
+}
+
+.footer {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.disclaimer {
+  font-weight: 700;
+}

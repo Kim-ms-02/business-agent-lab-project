@@ -1,30 +1,16 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import {
-  evaluate,
-  TITLE_ISSUES,
-  type EngineResult,
-  type Field,
-  type Grade,
-  type TitleIssue,
-} from "@/rules/engine";
+import { evaluate, TITLE_ISSUES, type EngineInput, type TitleIssue } from "@/rules/engine";
 import type { ContractPrefill, FormPrefill, ReviewOk } from "@/agent/extract";
+import type { ChecklistContext } from "@/checklist/status";
 import type { HouseType } from "@/data/marketPrice";
+import ChecklistReport, { type Submitted } from "./ChecklistReport";
 import ContractUpload from "./ContractUpload";
-import GuaranteeBox from "./GuaranteeBox";
 import MarketPriceLookup from "./MarketPriceLookup";
 import RegistryUpload from "./RegistryUpload";
 import { formatKoreanDate, parseKoreanDate } from "./parseDate";
 import styles from "./RiskForm.module.css";
-
-const FIELD_LABELS: Record<Field, string> = {
-  deposit: "보증금",
-  marketPrice: "매매시세",
-  mortgageMaxTotal: "근저당 채권최고액 합계",
-  titleIssues: "갑구 위험 기재",
-  ownershipTransferDate: "소유권 이전일",
-};
 
 const REGISTRY_BADGE = "등기부에서 읽음";
 const CONTRACT_BADGE = "계약서에서 읽음";
@@ -32,12 +18,6 @@ const REALTY_PRICE_URL = "https://www.realtyprice.kr";
 
 type UnitText = { jibun: string; dong: string; ho: string };
 const EMPTY_UNIT: UnitText = { jibun: "", dong: "", ho: "" };
-
-const GRADE_CLASS: Record<Grade, string> = {
-  안전: styles.safe,
-  주의: styles.caution,
-  위험: styles.danger,
-};
 
 export default function RiskForm() {
   const [deposit, setDeposit] = useState("");
@@ -47,7 +27,11 @@ export default function RiskForm() {
   const [issues, setIssues] = useState<TitleIssue[]>([]);
   const [noIssues, setNoIssues] = useState(false);
   const [transferDate, setTransferDate] = useState("");
-  const [result, setResult] = useState<EngineResult | null>(null);
+  // The last check: what was sent to the engine, its result, and what the checklist needs besides it.
+  const [checked, setChecked] = useState<{ id: number; submitted: Submitted; context: ChecklistContext } | null>(null);
+  // v0.5: the confirmed 등기부 values (for the 등기부 쉬운 요약) and whether a 계약서 was applied.
+  const [registryReview, setRegistryReview] = useState<ReviewOk | null>(null);
+  const [contractApplied, setContractApplied] = useState(false);
   // Which fields still hold the value read from the 등기부 (cleared as soon as the user edits them).
   const [fromRegistry, setFromRegistry] = useState({ mortgage: false, issues: false, transferDate: false });
   const [lookupInitial, setLookupInitial] = useState<FormPrefill["lookup"] | undefined>(undefined);
@@ -96,11 +80,12 @@ export default function RiskForm() {
       ho: p.registryUnit?.ho ?? "",
     });
     setFromRegistryV4({ owners: ownerNames.length > 0, unit: !!p.registryUnit });
+    setRegistryReview(review);
     if (marketPriceFromTrades) {
       setMarketPrice("");
       setMarketPriceFromTrades(false);
     }
-    setResult(null);
+    setChecked(null);
   }
 
   function applyContract(c: ContractPrefill) {
@@ -110,40 +95,42 @@ export default function RiskForm() {
     setContractDeposit(c.contractDeposit);
     setContractDate(c.contractDate);
     if (c.contractDeposit !== null) setDeposit(String(c.contractDeposit));
+    setContractApplied(true);
     setFromContract({
       deposit: c.contractDeposit !== null,
       landlords: c.landlordNames.length > 0,
       agent: true,
       unit: c.contractUnit !== null,
     });
-    setResult(null);
+    setChecked(null);
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setResult(
-      evaluate(
-        {
-          deposit: toAmount(deposit),
-          marketPrice: toAmount(marketPrice),
-          mortgageMaxTotal: toAmount(mortgage),
-          titleIssues: TITLE_ISSUES.filter((i) => issues.includes(i)),
-          noTitleIssues: noIssues,
-          // Unreadable dates are not passed on, so the engine reports the date as missing.
-          ownershipTransferDate: parsedTransferDate.kind === "ok" ? parsedTransferDate.iso : undefined,
-          landlordNames: splitNames(landlords),
-          ownerNames: splitNames(owners),
-          isAgentContract: isAgent,
-          contractUnit: toUnit(contractUnit),
-          registryUnit: toUnit(registryUnit),
-          contractDeposit: contractDeposit ?? undefined,
-          houseType,
-          lawdCd: lawdCd || undefined,
-          publicPrice: toAmount(publicPrice),
-        },
-        localToday(),
-      ),
-    );
+    const input: EngineInput = {
+      deposit: toAmount(deposit),
+      marketPrice: toAmount(marketPrice),
+      mortgageMaxTotal: toAmount(mortgage),
+      titleIssues: TITLE_ISSUES.filter((i) => issues.includes(i)),
+      noTitleIssues: noIssues,
+      // Unreadable dates are not passed on, so the engine reports the date as missing.
+      ownershipTransferDate: parsedTransferDate.kind === "ok" ? parsedTransferDate.iso : undefined,
+      landlordNames: splitNames(landlords),
+      ownerNames: splitNames(owners),
+      isAgentContract: isAgent,
+      contractUnit: toUnit(contractUnit),
+      registryUnit: toUnit(registryUnit),
+      contractDeposit: contractDeposit ?? undefined,
+      houseType,
+      lawdCd: lawdCd || undefined,
+      publicPrice: toAmount(publicPrice),
+    };
+    const today = localToday();
+    const context: ChecklistContext = {
+      contract: contractApplied ? { agent: isAgent } : null,
+      tenancies: registryReview?.tenancies.map((t) => ({ kind: t.kind })) ?? [],
+    };
+    setChecked((prev) => ({ id: (prev?.id ?? 0) + 1, submitted: { input, today, result: evaluate(input, today) }, context }));
   }
 
   return (
@@ -307,10 +294,12 @@ export default function RiskForm() {
           </div>
         </fieldset>
 
-        <button type="submit" className={styles.submit}>위험 확인하기</button>
+        <button type="submit" className={styles.submit}>체크리스트 보기</button>
       </form>
 
-      {result && <Result result={result} />}
+      {checked && (
+        <ChecklistReport key={checked.id} submitted={checked.submitted} registry={registryReview} context={checked.context} />
+      )}
     </>
   );
 }
@@ -333,92 +322,6 @@ function AmountField(props: {
       <input id={props.id} type="number" inputMode="numeric" min={0} step={1} className={styles.input}
         value={props.value} onChange={(e) => props.onChange(e.target.value)} />
     </div>
-  );
-}
-
-function Result({ result }: { result: EngineResult }) {
-  const { grade, hits, missing, errors, metrics, landlord, address, depositMismatch, guarantee } = result;
-  return (
-    <section className={styles.result} aria-live="polite">
-      <h2 className={styles.resultTitle}>확인 결과</h2>
-
-      {grade ? (
-        <p className={`${styles.grade} ${GRADE_CLASS[grade]}`}>등급: {grade}</p>
-      ) : (
-        <p className={styles.noGrade}>아직 등급을 낼 수 없어요. 아래 값을 채우거나 고쳐 주세요.</p>
-      )}
-
-      <GuaranteeBox guarantee={guarantee} />
-
-      <div className={styles.block}>
-        <h3>계약서·등기부 대조</h3>
-        <ul>
-          <li>
-            집주인: {checkText(landlord, { 일치: "일치", 불일치: "위험: 집주인 불일치", "확인 필요": "확인 필요" })}
-          </li>
-          <li>주소(지번·동·호수): {checkText(address, { 일치: "일치", 불일치: "확인 필요: 주소 불일치" })}</li>
-          {depositMismatch && (
-            <li className={styles.errorText}>
-              계약서 보증금({depositMismatch.contract.toLocaleString("ko-KR")}만원)과 판정에 넣은 보증금(
-              {depositMismatch.entered.toLocaleString("ko-KR")}만원)이 달라요.
-            </li>
-          )}
-        </ul>
-      </div>
-
-      {missing.length > 0 && (
-        <div className={styles.block}>
-          <h3>빠진 값</h3>
-          <ul>{missing.map((f) => <li key={f}>{FIELD_LABELS[f]}</li>)}</ul>
-        </div>
-      )}
-
-      {errors.length > 0 && (
-        <div className={styles.block}>
-          <h3>잘못 입력된 값</h3>
-          <ul>{errors.map((e) => <li key={e.field}>{FIELD_LABELS[e.field]}: {e.message}</li>)}</ul>
-        </div>
-      )}
-
-      {(metrics.jeonseRatio !== undefined || metrics.seniorBurdenRatio !== undefined) && (
-        <div className={styles.block}>
-          <h3>계산한 값</h3>
-          <ul>
-            {metrics.jeonseRatio !== undefined && <li>전세가율(보증금 ÷ 매매시세): {pct(metrics.jeonseRatio)}</li>}
-            {metrics.seniorBurdenRatio !== undefined && (
-              <li>선순위 부담률((근저당 + 보증금) ÷ 매매시세): {pct(metrics.seniorBurdenRatio)}</li>
-            )}
-          </ul>
-        </div>
-      )}
-
-      <div className={styles.block}>
-        <h3>걸린 규칙</h3>
-        {hits.length === 0 ? (
-          <p>걸린 규칙이 없습니다.</p>
-        ) : (
-          <ul className={styles.hits}>
-            {hits.map((h) => (
-              <li key={h.ruleId} className={styles.hit}>
-                <span className={`${styles.tag} ${GRADE_CLASS[h.grade]}`}>{h.grade}</span>
-                <p>{h.reason}</p>
-                <p className={styles.source}>
-                  기준: {h.source.source} (기준일 {h.source.basisDate})
-                  {h.source.url.startsWith("http") && (
-                    <> · <a href={h.source.url} target="_blank" rel="noreferrer">출처 보기</a></>
-                  )}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <p className={styles.disclaimer}>
-        이 결과는 법률 자문이 아닙니다. 계약 전에 확인을 돕는 참고 자료이며, 중요한 결정은 공인중개사·법무사 등
-        전문가와 상의하세요.
-      </p>
-    </section>
   );
 }
 
@@ -462,10 +365,6 @@ function toUnit(u: UnitText) {
   return { jibun, dong: u.dong.trim() || null, ho };
 }
 
-function checkText<R extends string>(check: { result: R | null; needs: string[] }, labels: Record<R, string>): string {
-  return check.result === null ? `판단하려면 이 값이 필요해요: ${check.needs.join(", ")}` : labels[check.result];
-}
-
 function toAmount(s: string): number | undefined {
   return s.trim() === "" ? undefined : Number(s);
 }
@@ -473,8 +372,4 @@ function toAmount(s: string): number | undefined {
 function localToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function pct(ratio: number): string {
-  return `${(Math.round(ratio * 1000) / 10).toFixed(1)}%`;
 }

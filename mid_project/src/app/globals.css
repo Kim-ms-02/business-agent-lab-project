@@ -41,7 +41,12 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+}
+
+/* 큰 글씨 보기: every size on the page is in rem, so this scales all of it. */
+html.large-text {
+  font-size: 125%;
 }
