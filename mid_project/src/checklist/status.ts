@@ -18,7 +18,11 @@ export type ItemStatus = {
 export type BuiltItem = ChecklistItem & { status: ItemStatus };
 
 // contract: null when no 계약서 was uploaded and checked; agent = the 대리인 칸 has a name.
-export type ChecklistContext = { contract: { agent: boolean } | null };
+// tenancies: 을구 전세권·임차권등기 from the 등기부 review (not part of the grade).
+export type ChecklistContext = {
+  contract: { agent: boolean } | null;
+  tenancies?: { kind: "전세권" | "임차권" }[];
+};
 
 export type Checklist = {
   items: BuiltItem[];
@@ -39,6 +43,9 @@ const FIELD_NAMES: Record<Field, string> = {
 
 const NO_CONTRACT = "계약서를 올리면 확인할 수 있어요";
 const TRUST_NOTE = "신탁등기는 전문가와 함께 확인하세요.";
+const TENANCY_LINE = "을구에 전세권·임차권등기가 있어요. 직접 확인하세요";
+// The engine adds this to the 확인 필요 reasons of rule 4; on the checklist it belongs to item 9 only.
+const isAgentReason = (r: string) => r.startsWith("대리인이 계약해요");
 
 const status = (kind: StatusKind, message: string, extra: Partial<ItemStatus> = {}): ItemStatus => ({
   kind,
@@ -80,7 +87,18 @@ function marketPriceItem(result: EngineResult): ItemStatus {
   return input(neededFields(result, ["deposit", "marketPrice"]));
 }
 
-function titleItem(result: EngineResult): { status: ItemStatus; questions: ChecklistQuestion[] } {
+function titleItem(result: EngineResult, ctx: ChecklistContext): { status: ItemStatus; questions: ChecklistQuestion[] } {
+  const kinds = new Set((ctx.tenancies ?? []).map((t) => t.kind));
+  const tenancyQuestions = [...kinds].map((k) => DEFAULT_QUESTIONS[`tenancy:${k}`][0]);
+  const base = titleBase(result);
+  if (kinds.size === 0) return base;
+  const questions = [...base.questions, ...tenancyQuestions];
+  // 전세권·임차권등기 are not graded: ✅ becomes ❓, ⚠ and ✏️ keep their status and get one more line.
+  if (base.status.kind === "ok") return { status: status("manual", TENANCY_LINE), questions };
+  return { status: { ...base.status, reasons: [...base.status.reasons, TENANCY_LINE] }, questions };
+}
+
+function titleBase(result: EngineResult): { status: ItemStatus; questions: ChecklistQuestion[] } {
   const hits = hitsOf(result, ["seniorBurden", "titleIssues", "recentTransfer"]);
   if (hits.length > 0) {
     const titleHit = hits.find((h) => h.ruleId === "titleIssues");
@@ -117,20 +135,27 @@ function landlordItem(result: EngineResult, ctx: ChecklistContext): ItemStatus {
   const depositLine = mismatch
     ? [`계약서 보증금(${mismatch.contract.toLocaleString("ko-KR")}만원)과 입력한 보증금(${mismatch.entered.toLocaleString("ko-KR")}만원)이 달라요.`]
     : [];
-  const hits = hitsOf(result, ["landlord", "address"]);
-  if (hits.length > 0) return hitStatus(worst(hits), [...hits.map((h) => h.reason), ...depositLine]);
+  // A 확인 필요 that is only about the 대리인 is shown on item 9, so it is not counted twice.
+  const landlordReasons = result.landlord.reasons.filter((r) => !isAgentReason(r));
+  const hits = hitsOf(result, ["landlord", "address"]).filter((h) => h.ruleId !== "landlord" || landlordReasons.length > 0);
+  if (hits.length > 0) {
+    const reasons = hits.map((h) =>
+      h.ruleId === "landlord" && result.landlord.result === "확인 필요" ? `확인 필요: ${landlordReasons.join(" ")}` : h.reason,
+    );
+    return hitStatus(worst(hits), [...reasons, ...depositLine]);
+  }
   if (result.landlord.result === null) return input(result.landlord.needs);
   return status("ok", "이름이 같아요. 신분증은 직접 확인하세요", { reasons: depositLine });
 }
 
 function agentItem(result: EngineResult, ctx: ChecklistContext): ItemStatus {
   if (ctx.contract === null) return manual(NO_CONTRACT);
-  if (ctx.contract.agent) return hitStatus("확인 필요", result.landlord.reasons.filter((r) => r.includes("대리인")));
+  if (ctx.contract.agent) return hitStatus("확인 필요", result.landlord.reasons.filter(isAgentReason));
   return status("ok", "계약서 대리인 칸이 비어 있어요(집주인과 직접 계약)");
 }
 
 export function buildChecklist(result: EngineResult, ctx: ChecklistContext): Checklist {
-  const title = titleItem(result);
+  const title = titleItem(result, ctx);
   const byNo: Record<number, ItemStatus> = {
     1: marketPriceItem(result),
     2: title.status,
