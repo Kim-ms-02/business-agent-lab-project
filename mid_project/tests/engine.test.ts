@@ -433,3 +433,54 @@ describe("rule 6: 보증보험 가입 가능성", () => {
     expect(r.hits).toEqual([]);
   });
 });
+
+describe("rule 6: 보증보험 — 갑구 권리침해 조건 (HUG 상품개요 2쪽)", () => {
+  const ok = { deposit: 20000, mortgageMaxTotal: 0, marketPrice: 40000, houseType: "apartment" as const, lawdCd: "11710" };
+
+  it.each(["압류", "가압류", "가처분", "가등기", "경매개시결정"] as const)(
+    "%s in 갑구 -> 가입 가능성 낮음, and the reason names it",
+    (item) => {
+      const g = run({ ...ok, titleIssues: [item], noTitleIssues: false }).guarantee;
+      expect(g.result).toBe("가입 가능성 낮음");
+      expect(g.reasons.join(" ")).toContain(item);
+      expect(g.reasons.join(" ")).toContain("권리침해");
+    },
+  );
+
+  it("신탁 only -> HUG에 직접 확인", () => {
+    const g = run({ ...ok, titleIssues: ["신탁"], noTitleIssues: false }).guarantee;
+    expect(g.result).toBe("HUG에 직접 확인");
+    expect(g.reasons.join(" ")).toContain("신탁");
+  });
+
+  it("신탁 with another 권리침해 기록 -> 가입 가능성 낮음 wins, both are named", () => {
+    const g = run({ ...ok, titleIssues: ["신탁", "압류"], noTitleIssues: false }).guarantee;
+    expect(g.result).toBe("가입 가능성 낮음");
+    expect(g.reasons.join(" ")).toContain("압류");
+    expect(g.reasons.join(" ")).toContain("신탁");
+  });
+
+  it("신탁 with a broken limit -> 가입 가능성 낮음", () => {
+    const g = run({ ...ok, deposit: 80000, marketPrice: 1_000_000, titleIssues: ["신탁"], noTitleIssues: false }).guarantee;
+    expect(g.result).toBe("가입 가능성 낮음");
+    expect(g.reasons.join(" ")).toContain("한도");
+  });
+
+  it("신탁 is reported even when other values are missing", () => {
+    const g = run({ ...ok, houseType: undefined, titleIssues: ["신탁"], noTitleIssues: false }).guarantee;
+    expect(g.result).toBe("HUG에 직접 확인");
+    expect(g.needs).toEqual(["집 종류"]);
+  });
+
+  it("갑구 not checked yet -> no verdict, 갑구 is listed as needed", () => {
+    const g = run({ ...ok, titleIssues: undefined, noTitleIssues: undefined }).guarantee;
+    expect(g.result).toBeNull();
+    expect(g.needs).toContain("등기부 갑구 기록");
+  });
+
+  it("the 갑구 condition still never changes the grade", () => {
+    const r = run({ ...ok, titleIssues: ["가등기"], noTitleIssues: false });
+    expect(r.guarantee.result).toBe("가입 가능성 낮음");
+    expect(r.hits.map((h) => h.ruleId)).toEqual(["titleIssues"]);
+  });
+});
