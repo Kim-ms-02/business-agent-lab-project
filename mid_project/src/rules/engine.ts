@@ -6,6 +6,7 @@ import {
   CAPITAL_AREA_SIDO_CODES,
   HOUSE_PRICE_METHOD,
   HUG_GUARANTEE,
+  HUG_TITLE_CONDITION,
   JEONSE_RATIO,
   LANDLORD_CHECK,
   RECENT_TRANSFER,
@@ -70,7 +71,7 @@ export type EngineResult = {
   address: Check<"일치" | "불일치">;
   depositMismatch: { contract: number; entered: number } | null;
   // Rule 6 is a warning next to the grade, never part of it.
-  guarantee: Check<"가입 가능성 낮음" | "기준 안에 있음"> & {
+  guarantee: Check<"가입 가능성 낮음" | "HUG에 직접 확인" | "기준 안에 있음"> & {
     housePrice: number | null; // 만원, the price used for the 90% / 60% checks
     notes: string[];
     source: Source;
@@ -184,7 +185,7 @@ export function evaluate(input: EngineInput, today: string): EngineResult {
       : null;
 
   // Rule 6: 보증보험 (uses only values that passed the checks above)
-  const guarantee = checkGuarantee(input, deposit, mortgage, marketPrice);
+  const guarantee = checkGuarantee(input, deposit, mortgage, marketPrice, titleIssues);
 
   const worst = hits.reduce<Grade>(
     (acc, h) => (GRADE_ORDER.indexOf(h.grade) > GRADE_ORDER.indexOf(acc) ? h.grade : acc),
@@ -251,6 +252,7 @@ function checkGuarantee(
   deposit: number | undefined,
   mortgage: number | undefined,
   marketPrice: number | undefined,
+  titleIssues: TitleIssue[] | undefined,
 ): EngineResult["guarantee"] {
   const needs: string[] = [];
   const reasons: string[] = [];
@@ -275,6 +277,7 @@ function checkGuarantee(
     }
   }
   if (mortgage === undefined) needs.push("근저당 채권최고액 합계");
+  if (titleIssues === undefined) needs.push("등기부 갑구 기록");
 
   // ① 보증금 한도
   if (deposit !== undefined && input.lawdCd !== undefined && /^\d{5}$/.test(input.lawdCd)) {
@@ -303,8 +306,21 @@ function checkGuarantee(
     }
   }
 
-  // A broken limit is reported even when other values are still missing; otherwise no verdict without every value.
-  const result = reasons.length > 0 ? "가입 가능성 낮음" : needs.length > 0 ? null : "기준 안에 있음";
+  // ④ 갑구 권리침해사항 (HUG 상품개요 2쪽). 신탁 is not in HUG's list: ask HUG instead of guessing.
+  const blockers = (titleIssues ?? []).filter((t) => (HUG_TITLE_CONDITION.blockers as readonly string[]).includes(t));
+  if (blockers.length > 0) {
+    reasons.push(
+      `등기부 갑구에 ${blockers.join(", ")} 기록이 있어요. HUG는 소유권에 대한 권리침해사항(경매신청·압류·가압류·가처분·가등기 등)이 없어야 보증해요.`,
+    );
+  }
+  const low = reasons.length > 0;
+  const askHug = (titleIssues ?? []).filter((t) => (HUG_TITLE_CONDITION.askHug as readonly string[]).includes(t));
+  if (askHug.length > 0) {
+    reasons.push(`등기부 갑구에 ${askHug.join(", ")} 기록이 있어요. 신탁된 집은 보증에 가입할 수 있는지 HUG에 직접 확인하세요.`);
+  }
+
+  // A broken limit (or 신탁) is reported even when other values are still missing; otherwise no verdict without every value.
+  const result = low ? "가입 가능성 낮음" : askHug.length > 0 ? "HUG에 직접 확인" : needs.length > 0 ? null : "기준 안에 있음";
   return { result, reasons, needs, housePrice: housePrice === null ? null : round(housePrice), notes, source: HUG_GUARANTEE.source };
 }
 

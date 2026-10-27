@@ -85,6 +85,18 @@ export const HUG_GUARANTEE = {
   },
 } as const;
 
+// Rule 6 (v0.5): HUG 보증조건 "주택 소유권에 대한 권리침해사항(경매신청·압류·가압류·가처분·가등기 등)이
+// 없을 것". 신탁 is not in HUG's list, so it is shown as "HUG에 직접 확인" rather than a verdict.
+export const HUG_TITLE_CONDITION = {
+  blockers: ["압류", "가압류", "가처분", "가등기", "경매개시결정"],
+  askHug: ["신탁"],
+  source: {
+    source: "HUG 전세보증금반환보증 상품개요 2쪽: 등기부등본상 확인사항 ① 권리침해사항이 없을 것",
+    url: HUG_URL,
+    basisDate: "2026-10-15",
+  },
+} as const;
+
 // HUG 주택가격 산정기준, copied from the HUG page (applied in this order). Reference only.
 export const HUG_HOUSE_PRICE_ORDER = {
   apartmentOfficetel: [

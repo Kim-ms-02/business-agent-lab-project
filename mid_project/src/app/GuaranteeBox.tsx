@@ -16,6 +16,7 @@ export default function GuaranteeBox({ guarantee }: { guarantee: EngineResult["g
       </h3>
 
       {low && <p className={styles.guaranteeVerdict}>⚠ 가입 가능성 낮음</p>}
+      {result === "HUG에 직접 확인" && <p className={styles.guaranteeVerdict}>❓ HUG에 직접 확인하세요</p>}
       {result === "기준 안에 있음" && (
         <p className={styles.guaranteeVerdict}>기준을 넘지 않았어요 (가입을 보장하지는 않아요)</p>
       )}
