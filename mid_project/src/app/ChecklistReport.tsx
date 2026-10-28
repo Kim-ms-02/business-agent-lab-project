@@ -2,6 +2,7 @@
 
 // v0.5 체크리스트 코치 화면: replaces the old one-grade result box. Statuses come from src/checklist (rule engine
 // results only).
+import { useState } from "react";
 import type { ReviewOk } from "@/agent/extract";
 import { EXCLUDED_ITEMS, STATUS_LABELS, type Stage } from "@/checklist/items";
 import { registrySummary } from "@/checklist/registrySummary";
@@ -32,6 +33,9 @@ export default function ChecklistReport({
   context: ChecklistContext;
 }) {
   const { items, summary } = buildChecklist(submitted.result, context);
+  // One stage at a time, so the page does not run on; 계약 전 comes first.
+  const [stage, setStage] = useState<Stage>("계약 전");
+  const inStage = items.filter((i) => i.stage === stage);
   const { errors } = submitted.result;
 
   return (
@@ -54,22 +58,19 @@ export default function ChecklistReport({
 
       <RegistrySummary registry={registry} />
 
-      {STAGES.map((stage) => {
-        const inStage = items.filter((i) => i.stage === stage);
-        return (
-          <details key={stage} className={styles.stage} open>
-            <summary className={styles.stageTitle}>
-              <span>{stage}</span>
-              <span className={styles.stageCounts}>{stageCounts(inStage)}</span>
-            </summary>
-            <div className={styles.cards}>
-              {inStage.map((item) => (
-                <ItemCard key={item.no} item={item} />
-              ))}
-            </div>
-          </details>
-        );
-      })}
+      <div className={styles.stageTabs} role="group" aria-label="체크리스트 단계">
+        {STAGES.map((st) => (
+          <button key={st} type="button" className={styles.stageTab} aria-pressed={st === stage} onClick={() => setStage(st)}>
+            <span>{st}</span>
+            <span className={styles.stageCounts}>{stageCounts(items.filter((i) => i.stage === st))}</span>
+          </button>
+        ))}
+      </div>
+      <div className={styles.cards}>
+        {inStage.map((item) => (
+          <ItemCard key={item.no} item={item} />
+        ))}
+      </div>
 
       <div className={styles.footer}>
         <p className={styles.disclaimer}>
