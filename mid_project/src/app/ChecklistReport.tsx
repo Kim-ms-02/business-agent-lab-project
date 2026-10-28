@@ -1,13 +1,11 @@
 "use client";
 
 // v0.5 체크리스트 코치 화면: replaces the old one-grade result box. Statuses come from src/checklist (rule engine
-// results only); the AI explanation is an optional extra under each item and never changes a status.
-import { useState } from "react";
-import type { ReportTopic, TenancyFact } from "@/agent/explain";
+// results only).
 import type { ReviewOk } from "@/agent/extract";
 import { EXCLUDED_ITEMS, STATUS_LABELS, type Stage } from "@/checklist/items";
 import { registrySummary } from "@/checklist/registrySummary";
-import { buildChecklist, summaryLines, topicItemNo, type BuiltItem, type ChecklistContext } from "@/checklist/status";
+import { buildChecklist, summaryLines, type BuiltItem, type ChecklistContext } from "@/checklist/status";
 import type { EngineInput, EngineResult, Field } from "@/rules/engine";
 import styles from "./Checklist.module.css";
 
@@ -24,12 +22,6 @@ const FIELD_LABELS: Record<Field, string> = {
   ownershipTransferDate: "소유권 이전일",
 };
 
-type ExplainState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "done"; topics: ReportTopic[] }
-  | { kind: "error"; message: string };
-
 export default function ChecklistReport({
   submitted,
   registry,
@@ -40,36 +32,11 @@ export default function ChecklistReport({
   context: ChecklistContext;
 }) {
   const { items, summary } = buildChecklist(submitted.result, context);
-  // The parent remounts this on every new check, so an old explanation never sticks to a new result.
-  const [explain, setExplain] = useState<ExplainState>({ kind: "idle" });
-
-  async function makeExplanation() {
-    setExplain({ kind: "loading" });
-    const tenancies: TenancyFact[] = (registry?.tenancies ?? []).map((t) => ({ kind: t.kind, amountWon: t.amountWon }));
-    try {
-      const res = await fetch("/api/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: submitted.input, today: submitted.today, tenancies }),
-      });
-      const body = await res.json();
-      if (!res.ok) setExplain({ kind: "error", message: body.error ?? "설명을 만들지 못했어요. 위의 체크리스트는 그대로 볼 수 있어요." });
-      else setExplain({ kind: "done", topics: body.topics as ReportTopic[] });
-    } catch {
-      setExplain({ kind: "error", message: "연결이 끊겨 설명을 만들지 못했어요. 위의 체크리스트는 그대로 볼 수 있어요." });
-    }
-  }
-
-  const topicsFor = (no: number | null) =>
-    explain.kind === "done" ? explain.topics.filter((t) => topicItemNo(t.topic.id) === no) : [];
   const { errors } = submitted.result;
 
   return (
     <section className={styles.report} aria-live="polite">
-      <div className={styles.topBar}>
-        <h2 className={styles.title}>계약 전 체크리스트</h2>
-        <LargeTextButton />
-      </div>
+      <h2 className={styles.title}>계약 전 체크리스트</h2>
 
       <div className={styles.summary}>
         {summaryLines(summary).map((line) => (
@@ -87,17 +54,6 @@ export default function ChecklistReport({
 
       <RegistrySummary registry={registry} />
 
-      <div className={styles.explainBar}>
-        <button type="button" className={styles.explainButton} onClick={makeExplanation} disabled={explain.kind === "loading"}>
-          {explain.kind === "loading" ? "공식 안내를 찾아 설명을 쓰는 중이에요…" : "쉬운 설명 만들기"}
-        </button>
-        <p className={styles.note}>
-          누르면 AI가 공식 문서에서 찾은 내용으로 항목 아래에 쉬운 설명을 붙여요. 1분쯤 걸릴 수 있어요. 항목의 상태는 바뀌지 않아요.
-        </p>
-        {explain.kind === "error" && <p className={styles.errorText} role="alert">{explain.message}</p>}
-        {topicsFor(null).map((t) => <Explanation key={t.topic.id} topic={t} />)}
-      </div>
-
       {STAGES.map((stage) => {
         const inStage = items.filter((i) => i.stage === stage);
         return (
@@ -108,7 +64,7 @@ export default function ChecklistReport({
             </summary>
             <div className={styles.cards}>
               {inStage.map((item) => (
-                <ItemCard key={item.no} item={item} topics={topicsFor(item.no)} />
+                <ItemCard key={item.no} item={item} />
               ))}
             </div>
           </details>
@@ -147,7 +103,7 @@ function statusClass(item: BuiltItem): string {
   return { ok: styles.ok, input: styles.input, manual: styles.manual }[s.kind];
 }
 
-function ItemCard({ item, topics }: { item: BuiltItem; topics: ReportTopic[] }) {
+function ItemCard({ item }: { item: BuiltItem }) {
   const s = item.status;
   return (
     <article className={`${styles.card} ${statusClass(item)}`}>
@@ -188,29 +144,8 @@ function ItemCard({ item, topics }: { item: BuiltItem; topics: ReportTopic[] }) 
           ))}
         </dl>
       )}
-      {topics.map((t) => <Explanation key={t.topic.id} topic={t} />)}
       <p className={styles.source}>출처: {item.source}</p>
     </article>
-  );
-}
-
-function Explanation({ topic }: { topic: ReportTopic }) {
-  const where = (id: string) => {
-    const c = topic.chunks.find((x) => x.id === id);
-    return c ? `${c.title} ${c.locator}` : id;
-  };
-  return (
-    <div className={styles.explanation}>
-      <p className={styles.label}>쉬운 설명 (AI · {topic.topic.title})</p>
-      {topic.message && <p className={styles.note}>{topic.message}</p>}
-      <ul>
-        {topic.explanation.map((s) => (
-          <li key={s.text}>
-            {s.text} <span className={styles.source}>({s.sources.map(where).join(", ")})</span>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 
@@ -246,20 +181,5 @@ function RegistrySummary({ registry }: { registry: ReviewOk | null }) {
         </>
       )}
     </div>
-  );
-}
-
-function LargeTextButton() {
-  // Rendered only after a check on the client, so document is there.
-  const [large, setLarge] = useState(() => document.documentElement.classList.contains("large-text"));
-  function toggle() {
-    const next = !large;
-    document.documentElement.classList.toggle("large-text", next);
-    setLarge(next);
-  }
-  return (
-    <button type="button" className={styles.largeText} aria-pressed={large} onClick={toggle}>
-      {large ? "보통 글씨로 보기" : "큰 글씨 보기"}
-    </button>
   );
 }
