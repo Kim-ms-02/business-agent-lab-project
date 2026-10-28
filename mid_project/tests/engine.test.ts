@@ -417,7 +417,7 @@ describe("rule 6: 보증보험 가입 가능성", () => {
     const g = run({ deposit: 80000, lawdCd: "41135", houseType: "officetel", marketPrice: undefined, mortgageMaxTotal: undefined })
       .guarantee;
     expect(g.result).toBe("가입 가능성 낮음");
-    expect(g.needs).toEqual(["매매시세", "근저당 채권최고액 합계"]);
+    expect(g.needs).toEqual(["집값", "근저당 채권최고액 합계"]);
   });
 
   it("missing 주소 and 집 종류 -> listed as needs", () => {
@@ -482,5 +482,16 @@ describe("rule 6: 보증보험 — 갑구 권리침해 조건 (HUG 상품개요 
     const r = run({ ...ok, titleIssues: ["가등기"], noTitleIssues: false });
     expect(r.guarantee.result).toBe("가입 가능성 낮음");
     expect(r.hits.map((h) => h.ruleId)).toEqual(["titleIssues"]);
+  });
+});
+
+// The input box is called 집값(매매가), so the reasons on screen say 집값 too.
+describe("reasons say 집값, the name of the input box", () => {
+  it("rule 1 and rule 2 reasons", () => {
+    const r = run({ deposit: 8000, mortgageMaxTotal: 2000, marketPrice: 10000 });
+    const reason = (id: string) => r.hits.find((h) => h.ruleId === id)?.reason ?? "";
+    expect(reason("jeonseRatio")).toContain("보증금이 집값의 80.0%입니다.");
+    expect(reason("seniorBurden")).toContain("보증금(8,000만원)을 더하면 집값의 100.0%입니다.");
+    expect(r.hits.map((h) => h.reason).join(" ")).not.toContain("매매시세");
   });
 });

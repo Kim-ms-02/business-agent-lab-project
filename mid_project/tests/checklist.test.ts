@@ -149,11 +149,11 @@ describe("계약서와 대리인", () => {
 });
 
 describe("값이 빠졌을 때 ✏️", () => {
-  it("no 매매시세 -> 1, 2, 5 ✏️ and each says what to enter", () => {
+  it("no 집값 -> 1, 2, 5 ✏️ and each says what to enter", () => {
     const items = check({ ...DEMO_CASES.safe, marketPrice: undefined }).items;
     for (const no of [1, 2, 5]) {
       expect(statusOf(items, no).kind).toBe("input");
-      expect(statusOf(items, no).needs).toContain("매매시세");
+      expect(statusOf(items, no).needs).toContain("집값");
     }
   });
 
