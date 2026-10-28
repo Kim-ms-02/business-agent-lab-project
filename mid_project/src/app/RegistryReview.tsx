@@ -60,17 +60,7 @@ export default function RegistryReview({
         {owners.value?.map((o) => `${o.name} (${o.role}${o.share ? `, 지분 ${o.share}` : ""})`).join(", ") ?? "찾지 못함"}
       </Row>
       <Row label="주소 (지번)" {...rowProps("address", address)}>
-        {address.value ? (
-          <>
-            {address.value.text}
-            <span className={styles.hint}>
-              {" "}→ 시세 조회 칸: {address.value.sido ?? "?"} {address.value.sigungu ?? "?"} / {address.value.umdNm ?? "?"} /{" "}
-              {address.value.jibun ?? "?"}
-            </span>
-          </>
-        ) : (
-          "찾지 못함"
-        )}
+        {address.value ? address.value.text : "찾지 못함"}
       </Row>
       {review.unit && (
         <Row label="동·호수" {...rowProps("unit", review.unit)}>
@@ -155,11 +145,11 @@ export default function RegistryReview({
           setApplied(true);
         }}
       >
-        확인하고 아래 칸에 채우기
+        확인하고 값 저장하기
       </button>
       {applied && (
         <p className={styles.hint} aria-live="polite">
-          아래 칸에 채웠어요. 틀린 값은 아래 칸에서 바로 고쳐 주세요. 보증금과 매매시세는 직접 넣거나 시세 찾기를 눌러 주세요.
+          확인한 값을 저장했어요. 틀린 값은 2단계의 &lsquo;등기부·계약서에서 읽은 값 고치기&rsquo;에서 고칠 수 있어요.
         </p>
       )}
     </div>

@@ -11,7 +11,7 @@ export default function ContractUpload({ onApply }: { onApply: (prefill: Contrac
   return (
     <DocumentUpload<ContractReviewOk, ContractPrefill>
       doc="contract"
-      title="계약서 올려서 값 채우기 (선택)"
+      title="계약서 올리기 (선택)"
       intro="주택임대차계약서 PDF 1개 또는 사진(JPG·PNG, 최대 10장)을 올리면 AI가 임대인·대리인·주소·보증금·계약일을 읽어 와요. 확인하신 뒤에만 아래 칸에 채우고, 등기부와 비교해요. 올리지 않으면 8·9번은 직접 확인할 항목으로 남아요."
       fileLabel="계약서"
       renderReview={(r) => (
@@ -92,11 +92,11 @@ function ContractReview({
           setApplied(true);
         }}
       >
-        확인하고 아래 칸에 채우기
+        확인하고 값 저장하기
       </button>
       {applied && (
         <p className={styles.hint} aria-live="polite">
-          아래 칸에 채웠어요. 틀린 값은 아래 칸에서 바로 고쳐 주세요.
+          확인한 값을 저장했어요. 보증금은 아래 칸에 넣었어요. 틀리면 바로 고쳐 주세요.
         </p>
       )}
     </div>

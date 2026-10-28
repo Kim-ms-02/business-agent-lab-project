@@ -387,3 +387,46 @@
 .fixBox[open] > summary {
   margin-bottom: 12px;
 }
+
+.stepBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 24px;
+  color: var(--muted);
+}
+
+.stepBar li + li::before {
+  content: "→ ";
+}
+
+.stepCurrent {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step[hidden] {
+  display: none;
+}
+
+.stepTitle {
+  font-size: 1.3rem;
+}
+
+.stepNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stepNav > button {
+  flex: 1 1 200px;
+}

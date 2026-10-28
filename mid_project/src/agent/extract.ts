@@ -344,7 +344,7 @@ function reviewAddress(src: RawField): Reviewed<AddressParts> {
   const extra: string[] = [];
   if (parts.lawdCd === null) extra.push("시군구를 찾지 못했어요.");
   else if (parts.umdNm === null || parts.jibun === null) extra.push("법정동이나 지번을 찾지 못했어요.");
-  else if (parts.umdNm.includes(" ")) extra.push("읍·면 지역은 시세 조회에 쓸 법정동 이름을 확인해 주세요.");
+  else if (parts.umdNm.includes(" ")) extra.push("읍·면 지역은 법정동 이름을 확인해 주세요.");
   return reviewed(src, parts, extra);
 }
 

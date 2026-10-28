@@ -18,7 +18,17 @@ const REALTY_PRICE_URL = "https://www.realtyprice.kr";
 type UnitText = { jibun: string; dong: string; ho: string };
 const EMPTY_UNIT: UnitText = { jibun: "", dong: "", ho: "" };
 
+type Step = 1 | 2 | 3;
+const STEP_NAMES: Record<Step, string> = { 1: "등기부", 2: "계약서·금액", 3: "체크리스트" };
+
 export default function RiskForm() {
+  // 처음부터 다시 하기 remounts every step, so everything read and entered is cleared.
+  const [run, setRun] = useState(0);
+  return <Steps key={run} onRestart={() => setRun((r) => r + 1)} />;
+}
+
+function Steps({ onRestart }: { onRestart: () => void }) {
+  const [step, setStep] = useState<Step>(1);
   const [deposit, setDeposit] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
   const [mortgage, setMortgage] = useState("");
@@ -47,6 +57,11 @@ export default function RiskForm() {
   const [fromContract, setFromContract] = useState({ deposit: false, landlords: false, agent: false, unit: false });
   const [fromRegistryV4, setFromRegistryV4] = useState({ owners: false, unit: false });
   const parsedTransferDate = parseKoreanDate(transferDate);
+
+  function goTo(next: Step) {
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  }
 
   function toggleIssue(item: TitleIssue) {
     setIssues((prev) => (prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item]));
@@ -121,12 +136,30 @@ export default function RiskForm() {
       tenancies: registryReview?.tenancies.map((t) => ({ kind: t.kind })) ?? [],
     };
     setChecked((prev) => ({ id: (prev?.id ?? 0) + 1, submitted: { input, today, result: evaluate(input, today) }, context }));
+    goTo(3);
   }
 
   return (
     <>
-      <RegistryUpload onApply={applyRegistry} />
-      <ContractUpload onApply={applyContract} />
+      <StepBar step={step} />
+
+      {/* Steps 1 and 2 stay mounted (only hidden), so going back keeps what was read and entered. */}
+      <section hidden={step !== 1} className={styles.step}>
+        <h2 className={styles.stepTitle}>1단계 · 등기부등본 읽기</h2>
+        <RegistryUpload onApply={applyRegistry} />
+        <div className={styles.stepNav}>
+          <button type="button" className={styles.submit} onClick={() => goTo(2)}>다음: 계약서와 금액 →</button>
+        </div>
+        {registryReview === null && (
+          <p className={styles.hint}>
+            등기부를 확인하지 않고 넘어가면 2번(권리관계)은 ✏️로 남아요. 2단계의 &lsquo;읽은 값 고치기&rsquo;에서 직접 넣을 수도 있어요.
+          </p>
+        )}
+      </section>
+
+      <section hidden={step !== 2} className={styles.step}>
+        <h2 className={styles.stepTitle}>2단계 · 계약서와 금액 (계약서는 선택)</h2>
+        <ContractUpload onApply={applyContract} />
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
         <p className={styles.hint}>보증금과 집값을 넣으면 1번(전세 시세)·2번(권리관계)·5번(보증보험)을 계산해요. 비워 두면 ✏️로 남아요.</p>
@@ -213,7 +246,7 @@ export default function RiskForm() {
           <fieldset className={styles.lookup}>
             <legend className={styles.label}>계약서·등기부 대조</legend>
             <p className={styles.hint}>
-              계약하는 사람이 등기부의 집주인인지, 계약서 주소가 등기부와 같은지 비교해요. 위에서 계약서와 등기부를 올리면 채워져요.
+              계약하는 사람이 등기부의 집주인인지, 계약서 주소가 등기부와 같은지 비교해요. 1단계에서 등기부를, 2단계에서 계약서를 올리면 채워져요.
             </p>
 
             <div className={styles.field}>
@@ -267,13 +300,35 @@ export default function RiskForm() {
           </fieldset>
         </details>
 
-        <button type="submit" className={styles.submit}>체크리스트 보기</button>
+        <div className={styles.stepNav}>
+          <button type="button" className={styles.secondary} onClick={() => goTo(1)}>← 이전: 등기부</button>
+          <button type="submit" className={styles.submit}>체크리스트 보기 →</button>
+        </div>
       </form>
+      </section>
 
-      {checked && (
-        <ChecklistReport key={checked.id} submitted={checked.submitted} registry={registryReview} context={checked.context} />
+      {step === 3 && checked && (
+        <section className={styles.step}>
+          <ChecklistReport key={checked.id} submitted={checked.submitted} registry={registryReview} context={checked.context} />
+          <div className={styles.stepNav}>
+            <button type="button" className={styles.secondary} onClick={() => goTo(2)}>← 이전: 계약서와 금액</button>
+            <button type="button" className={styles.secondary} onClick={onRestart}>처음부터 다시 하기</button>
+          </div>
+        </section>
       )}
     </>
+  );
+}
+
+function StepBar({ step }: { step: Step }) {
+  return (
+    <ol className={styles.stepBar} aria-label="진행 단계">
+      {([1, 2, 3] as const).map((s) => (
+        <li key={s} aria-current={s === step ? "step" : undefined} className={s === step ? styles.stepCurrent : undefined}>
+          {"①②③"[s - 1]} {STEP_NAMES[s]}
+        </li>
+      ))}
+    </ol>
   );
 }
 

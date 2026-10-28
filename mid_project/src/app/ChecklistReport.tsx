@@ -36,7 +36,7 @@ export default function ChecklistReport({
 
   return (
     <section className={styles.report} aria-live="polite">
-      <h2 className={styles.title}>계약 전 체크리스트</h2>
+      <h2 className={styles.title}>3단계 · 계약 전 체크리스트</h2>
 
       <div className={styles.summary}>
         {summaryLines(summary).map((line) => (
