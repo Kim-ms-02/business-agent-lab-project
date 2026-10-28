@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Evidence, ReviewOk, TenancyKind } from "@/agent/extract";
-import { HOUSE_TYPE_LABELS } from "@/data/marketPrice";
+import { HOUSE_TYPE_LABELS } from "@/data/houseType";
 import { formatKoreanDate } from "./parseDate";
 import { Row, wonText } from "./ReviewRow";
 import styles from "./RiskForm.module.css";

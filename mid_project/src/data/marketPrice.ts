@@ -5,14 +5,9 @@
 
 import { MARKET_PRICE_METHOD } from "../rules/config";
 
-export type HouseType = "apartment" | "rowhouse" | "officetel";
+import type { HouseType } from "./houseType";
 
-export const HOUSE_TYPE_LABELS: Record<HouseType, string> = {
-  apartment: "아파트",
-  rowhouse: "빌라(연립·다세대)",
-  officetel: "오피스텔",
-};
-
+export { HOUSE_TYPE_LABELS, type HouseType } from "./houseType";
 
 const ENDPOINTS: Record<HouseType, { path: string; nameTag: string }> = {
   apartment: { path: "RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade", nameTag: "aptNm" },

@@ -3,7 +3,7 @@
 // format checks, 원 -> 만원, totals, region codes, "확인 필요" flags — is done here in plain code.
 import Anthropic from "@anthropic-ai/sdk";
 import { parseKoreanDate } from "../app/parseDate";
-import type { HouseType } from "../data/marketPrice";
+import type { HouseType } from "../data/houseType";
 import { REGIONS } from "../data/regions";
 import { TITLE_ISSUES, type TitleIssue } from "../rules/engine";
 import { EXTRACT_EFFORT, EXTRACT_MAX_TOKENS, EXTRACT_MODEL, MAX_IMAGES, MAX_UPLOAD_BYTES } from "./config";

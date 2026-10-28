@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { evaluate, TITLE_ISSUES, type EngineInput, type TitleIssue } from "@/rules/engine";
 import type { ContractPrefill, FormPrefill, ReviewOk } from "@/agent/extract";
 import type { ChecklistContext } from "@/checklist/status";
-import type { HouseType } from "@/data/marketPrice";
+import type { HouseType } from "@/data/houseType";
 import ChecklistReport, { type Submitted } from "./ChecklistReport";
 import ContractUpload from "./ContractUpload";
 import MarketPriceLookup from "./MarketPriceLookup";
