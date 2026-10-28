@@ -1,5 +1,5 @@
 {
-  "name": "jeonse-radar",
+  "name": "jeonse-checklist-coach",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -24,5 +24,6 @@
     "pdfjs-dist": "^6.4.299",
     "typescript": "^5",
     "vitest": "^5.0.3"
-  }
+  },
+  "description": "등기부등본 쉬운 요약과 국토교통부 안내서 기반 전세 계약 체크리스트 코치"
 }
