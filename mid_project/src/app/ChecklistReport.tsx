@@ -17,7 +17,7 @@ const ICONS = { ok: "✅", hit: "⚠", input: "✏️", manual: "❓" } as const
 
 const FIELD_LABELS: Record<Field, string> = {
   deposit: "보증금",
-  marketPrice: "매매시세",
+  marketPrice: "집값",
   mortgageMaxTotal: "근저당 채권최고액 합계",
   titleIssues: "갑구 위험 기재",
   ownershipTransferDate: "소유권 이전일",

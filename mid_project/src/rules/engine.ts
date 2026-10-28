@@ -105,7 +105,7 @@ export function evaluate(input: EngineInput, today: string): EngineResult {
       hits.push({
         ruleId: "jeonseRatio",
         grade,
-        reason: `보증금이 매매시세의 ${pct(ratio)}입니다. ${pct(line)} 이상이면 ${grade === "위험" ? "위험으로" : "주의로"} 봅니다. 집값이 떨어지면 보증금을 돌려받기 어려울 수 있습니다.`,
+        reason: `보증금이 집값의 ${pct(ratio)}입니다. ${pct(line)} 이상이면 ${grade === "위험" ? "위험으로" : "주의로"} 봅니다. 집값이 떨어지면 보증금을 돌려받기 어려울 수 있습니다.`,
         values: { deposit, marketPrice, ratio, threshold: line },
         source: JEONSE_RATIO.source,
       });
@@ -120,7 +120,7 @@ export function evaluate(input: EngineInput, today: string): EngineResult {
       hits.push({
         ruleId: "seniorBurden",
         grade: "위험",
-        reason: `근저당 채권최고액(${won(mortgage)})과 보증금(${won(deposit)})을 더하면 매매시세의 ${pct(ratio)}입니다. ${pct(SENIOR_BURDEN.dangerAbove)}를 넘으면 집이 경매로 팔려도 보증금을 다 돌려받지 못할 수 있습니다.`,
+        reason: `근저당 채권최고액(${won(mortgage)})과 보증금(${won(deposit)})을 더하면 집값의 ${pct(ratio)}입니다. ${pct(SENIOR_BURDEN.dangerAbove)}를 넘으면 집이 경매로 팔려도 보증금을 다 돌려받지 못할 수 있습니다.`,
         values: { mortgageMaxTotal: mortgage, deposit, marketPrice, ratio, threshold: SENIOR_BURDEN.dangerAbove },
         source: SENIOR_BURDEN.source,
       });
@@ -272,7 +272,7 @@ function checkGuarantee(
       else needs.push("공시가격");
     } else {
       if (marketPrice !== undefined) housePrice = marketPrice;
-      else needs.push("매매시세");
+      else needs.push("집값");
       notes.push(type === "officetel" ? HOUSE_PRICE_METHOD.notes.officetel : HOUSE_PRICE_METHOD.notes.apartment);
     }
   }
