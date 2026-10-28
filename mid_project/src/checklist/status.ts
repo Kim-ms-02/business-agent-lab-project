@@ -83,7 +83,7 @@ function marketPriceItem(result: EngineResult): ItemStatus {
   const ratio = result.metrics.jeonseRatio;
   if (ratio !== undefined) {
     const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
-    return status("ok", `보증금이 추정 시세의 ${pct(ratio)}로 주의 기준(${pct(JEONSE_RATIO.cautionAtOrAbove)}) 아래예요`);
+    return status("ok", `보증금이 집값의 ${pct(ratio)}로 주의 기준(${pct(JEONSE_RATIO.cautionAtOrAbove)}) 아래예요`);
   }
   return input(neededFields(result, ["deposit", "marketPrice"]));
 }
