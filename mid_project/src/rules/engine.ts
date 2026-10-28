@@ -263,7 +263,7 @@ function checkGuarantee(
   if (input.lawdCd === undefined || !/^\d{5}$/.test(input.lawdCd)) needs.push("주소(시군구)");
   if (type === undefined) needs.push("집 종류");
 
-  // 주택가격 (자체 해석, see HOUSE_PRICE_METHOD): 빌라는 공시가격 × 140%, 그 외는 실거래 추정 시세.
+  // 주택가격 (자체 해석, see HOUSE_PRICE_METHOD): 빌라는 공시가격 × 140%, 그 외는 직접 넣은 집값.
   let housePrice: number | null = null;
   if (type !== undefined) {
     if (HOUSE_PRICE_METHOD[type] === "publicPrice") {

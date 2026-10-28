@@ -109,20 +109,20 @@ export const HUG_HOUSE_PRICE_ORDER = {
 } as const;
 
 // 자체 해석: the house price this app uses for rule 6. Not HUG's full procedure — we only have
-// our 실거래 estimate and a 공시가격 the user types in (no KB / 부동산원 / 기준시가 data).
+// the house price and the 공시가격 the user types in (no KB / 부동산원 / 기준시가 data).
 export const HOUSE_PRICE_METHOD = {
-  apartment: "estimate", // 실거래 추정 시세 (HUG ①은 KB·부동산원 시세)
+  apartment: "estimate", // 직접 넣은 집값 (HUG ①은 KB·부동산원 시세)
   rowhouse: "publicPrice", // 공시가격 × 140% only, following HUG ① for 연립·다세대
-  officetel: "estimate", // 실거래 추정 시세 + officetel notice below
+  officetel: "estimate", // 직접 넣은 집값 + officetel notice below
   notes: {
-    apartment: "추정 시세 기준이라 실제 심사와 다를 수 있음",
+    apartment: "직접 넣은 집값 기준이라 실제 심사와 다를 수 있음",
     officetel:
       "오피스텔은 HUG 심사에서 KB·한국부동산원 시세 또는 국세청 기준시가의 140%로 집값을 정해요. " +
-      "여기서는 실거래 추정 시세로 계산했기 때문에 실제 심사 결과와 다를 수 있어요. " +
+      "여기서는 직접 넣은 집값으로 계산했기 때문에 실제 심사 결과와 다를 수 있어요. " +
       "또 계약서나 중개대상물 확인·설명서에 '주거용'이라고 적혀 있어야 보증보험에 가입할 수 있어요.",
   },
   source: {
-    source: "자체 해석: 아파트·오피스텔은 실거래 추정 시세, 빌라(연립·다세대)는 공시가격 × 140% (HUG 산정 순서 참고)",
+    source: "자체 해석: 아파트·오피스텔은 직접 넣은 집값, 빌라(연립·다세대)는 공시가격 × 140% (HUG 산정 순서 참고)",
     url: HUG_URL,
     basisDate: "2026-10-14",
     note: "사용자 승인 2026-10-14. 오피스텔 안내 문구의 출처는 HUG 페이지(기준일 2026-10-14)",

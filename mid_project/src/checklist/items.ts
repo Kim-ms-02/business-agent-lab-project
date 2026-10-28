@@ -45,7 +45,7 @@ const DRAFTS: Draft[] = [
     title: "전세 시세 조사",
     auto: true,
     guide:
-      "시세보다 보증금이 크게 높지 않은 집인지 실거래가 공개시스템(rt.molit.go.kr), 안심전세App, 공인중개사 사무소에서 확인하세요. 앱의 시세는 실거래로 추정한 값이에요.",
+      "시세보다 보증금이 크게 높지 않은 집인지 실거래가 공개시스템(rt.molit.go.kr), 안심전세App, 공인중개사 사무소에서 확인하세요. 앱은 직접 넣은 집값으로 계산해요.",
     source: src("15~20"),
     questions: [DEFAULT_QUESTIONS.jeonseRatio[0]],
   },
