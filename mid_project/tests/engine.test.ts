@@ -354,12 +354,12 @@ describe("rule 6: 보증보험 가입 가능성", () => {
   // 수도권 apartment: deposit 2억, 근저당 0, 시세 4억 -> every condition passes.
   const ok = { deposit: 20000, mortgageMaxTotal: 0, marketPrice: 40000, houseType: "apartment" as const, lawdCd: "11710" };
 
-  it("within every limit -> 기준 안에 있음, shows the source and the 추정 시세 note", () => {
+  it("within every limit -> 기준 안에 있음, shows the source and the 직접 넣은 집값 note", () => {
     const g = run(ok).guarantee;
     expect(g.result).toBe("기준 안에 있음");
     expect(g.housePrice).toBe(40000);
     expect(g.source.url).toContain("khug.or.kr");
-    expect(g.notes.join(" ")).toContain("추정 시세 기준");
+    expect(g.notes.join(" ")).toContain("직접 넣은 집값 기준");
   });
 
   it.each([
