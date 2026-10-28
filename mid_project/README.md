@@ -12,7 +12,7 @@ npm run dev     # http://localhost:3000
 npm test        # 규칙 엔진·체크리스트·등기부 추출·설명 검사 테스트 (Vitest)
 ```
 
-등기부·계약서 읽기와 쉬운 설명은 `.env.local`의 Anthropic API 키가 필요합니다(커밋 금지). 등기부 한 건에 약 $0.01~0.04, 계약서 한 건에 약 $0.01이 듭니다(v0.3·v0.4 측정).
+등기부·계약서 읽기는 `.env.local`의 Anthropic API 키가 필요합니다(커밋 금지). 등기부 한 건에 약 $0.01~0.04, 계약서 한 건에 약 $0.01이 듭니다(v0.3·v0.4 측정).
 
 ```
 ANTHROPIC_API_KEY=발급받은_키
@@ -20,17 +20,25 @@ ANTHROPIC_API_KEY=발급받은_키
 
 Node 24, npm 11에서 확인했습니다.
 
+## 화면 흐름
+
+1. **1단계 · 등기부등본 읽기**: 등기부를 올리면 AI가 값을 읽고, 원문 근거와 함께 보여 줍니다. 확인한 값만 저장합니다.
+2. **2단계 · 계약서와 금액**: 계약서는 선택입니다(올리면 8·9번 확인, 보증금 자동 입력). 보증금·집값은 직접 넣고, 빌라면 공시가격도 넣습니다. 읽은 값은 접힌 "읽은 값 고치기" 상자에서 고칩니다.
+3. **3단계 · 체크리스트**: 맨 위 요약, 등기부 쉬운 요약, 17개 항목(✅ 앱이 확인함 / ⚠ 걸림 / ✏️ 입력하면 확인 / ❓ 직접 확인)을 보여 줍니다.
+
+[다음]·[이전]으로 오가도 읽은 값과 입력한 값은 남고, [처음부터 다시 하기]는 모두 지웁니다.
+
 ## 구조
 
 - `src/rules/config.ts`: 위험 기준값과 출처·기준일
 - `src/rules/engine.ts`: 위험 규칙 계산 (순수 함수)
 - `src/checklist/`: 체크리스트 17개 항목(승인 문구)과 상태, 등기부 쉬운 요약
 - `src/data/regions.ts`: 수도권 판단용 시군구 코드표 (`scripts/build-regions.mjs`로 생성)
-- `src/agent/retrieve.ts`, `src/agent/explain.ts`, `src/app/api/explain/route.ts`: 공식 문서 검색과 출처를 단 쉬운 설명
+- `src/agent/retrieve.ts`, `src/agent/explain.ts`, `src/app/api/explain/route.ts`: 공식 문서 검색과 출처를 단 쉬운 설명 (지금 화면에서는 부르지 않음, 방향 정리 3)
 - `src/agent/extract.ts`: 등기부·계약서 → 값과 원문 근거 (AI는 글자만 옮기고 변환·합계·확인 필요 표시는 코드)
 - `src/agent/config.ts`: 등기부 읽기 모델 이름, 생각 강도, 업로드 한도
 - `src/app/api/extract/route.ts`: 서버에서만 API 키를 쓰는 서류 읽기 경로 (`doc=registry|contract`, 서류는 저장·로그하지 않음)
-- `src/app/`: 서류 올리기·확인 화면, 직접 입력 칸, 체크리스트 화면
+- `src/app/`: 3단계 화면(서류 올리기·확인, 직접 입력 칸, 체크리스트)
 - `tests/`: 규칙 엔진, 체크리스트, 등기부·계약서 추출, 설명 검사, 문서 검색 테스트
 - `tests/fixtures/`: 테스트용 가상 등기부 4종·계약서 5종과 정답표(`README.md`), `scripts/build-fixtures.mjs`로 생성
 
