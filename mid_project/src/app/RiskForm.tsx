@@ -153,15 +153,15 @@ function Steps({ onRestart }: { onRestart: () => void }) {
         <div className={styles.stepNav}>
           <button type="button" className={styles.submit} onClick={() => goTo(2)}>다음: 계약서와 금액 →</button>
         </div>
+      </section>
+
+      <section hidden={step !== 2} className={styles.step}>
+        <h2 className={styles.stepTitle}>2단계 · 계약서와 금액 (계약서는 선택)</h2>
         {registryReview === null && (
           <p className={styles.hint}>
             등기부를 확인하지 않고 넘어가면 2번(권리관계)은 ✏️로 남아요. 2단계의 &lsquo;읽은 값 고치기&rsquo;에서 직접 넣을 수도 있어요.
           </p>
         )}
-      </section>
-
-      <section hidden={step !== 2} className={styles.step}>
-        <h2 className={styles.stepTitle}>2단계 · 계약서와 금액 (계약서는 선택)</h2>
         <ContractUpload onApply={applyContract} />
 
       <form className={styles.form} onSubmit={onSubmit} noValidate>
