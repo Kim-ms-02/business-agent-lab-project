@@ -7,7 +7,6 @@ import type { ChecklistContext } from "@/checklist/status";
 import type { HouseType } from "@/data/houseType";
 import ChecklistReport, { type Submitted } from "./ChecklistReport";
 import ContractUpload from "./ContractUpload";
-import MarketPriceLookup from "./MarketPriceLookup";
 import RegistryUpload from "./RegistryUpload";
 import { formatKoreanDate, parseKoreanDate } from "./parseDate";
 import styles from "./RiskForm.module.css";
@@ -22,7 +21,6 @@ const EMPTY_UNIT: UnitText = { jibun: "", dong: "", ho: "" };
 export default function RiskForm() {
   const [deposit, setDeposit] = useState("");
   const [marketPrice, setMarketPrice] = useState("");
-  const [marketPriceFromTrades, setMarketPriceFromTrades] = useState(false);
   const [mortgage, setMortgage] = useState("");
   const [issues, setIssues] = useState<TitleIssue[]>([]);
   const [noIssues, setNoIssues] = useState(false);
@@ -34,10 +32,9 @@ export default function RiskForm() {
   const [contractApplied, setContractApplied] = useState(false);
   // Which fields still hold the value read from the 등기부 (cleared as soon as the user edits them).
   const [fromRegistry, setFromRegistry] = useState({ mortgage: false, issues: false, transferDate: false });
-  const [lookupInitial, setLookupInitial] = useState<FormPrefill["lookup"] | undefined>(undefined);
-  const [lookupKey, setLookupKey] = useState(0);
   // v0.4: contract vs 등기부, 보증보험
-  const [houseType, setHouseType] = useState<HouseType>("apartment");
+  // From the 등기부 (집 종류, 시군구 for 수도권); empty until a 등기부 is applied.
+  const [houseType, setHouseType] = useState<HouseType | null>(null);
   const [lawdCd, setLawdCd] = useState("");
   const [landlords, setLandlords] = useState("");
   const [owners, setOwners] = useState("");
@@ -67,10 +64,7 @@ export default function RiskForm() {
       issues: p.titleIssues.length > 0 || p.noTitleIssues,
       transferDate: p.ownershipTransferDate !== null,
     });
-    // New address: restart the lookup from the 등기부 values and drop an estimate for the old one.
-    setLookupInitial(p.lookup);
-    setLookupKey((k) => k + 1);
-    setHouseType(p.lookup.type ?? "apartment");
+    setHouseType(p.lookup.type);
     setLawdCd(p.lookup.lawdCd ?? "");
     const ownerNames = review.owners.value?.map((o) => o.name) ?? [];
     setOwners(ownerNames.join(", "));
@@ -81,10 +75,6 @@ export default function RiskForm() {
     });
     setFromRegistryV4({ owners: ownerNames.length > 0, unit: !!p.registryUnit });
     setRegistryReview(review);
-    if (marketPriceFromTrades) {
-      setMarketPrice("");
-      setMarketPriceFromTrades(false);
-    }
     setChecked(null);
   }
 
@@ -121,7 +111,7 @@ export default function RiskForm() {
       contractUnit: toUnit(contractUnit),
       registryUnit: toUnit(registryUnit),
       contractDeposit: contractDeposit ?? undefined,
-      houseType,
+      houseType: houseType ?? undefined,
       lawdCd: lawdCd || undefined,
       publicPrice: toAmount(publicPrice),
     };
@@ -148,31 +138,9 @@ export default function RiskForm() {
           hint={contractDeposit !== null
             ? `계약서에 적힌 전세 보증금 (계약서: ${contractDeposit.toLocaleString("ko-KR")}만원${contractDate ? `, 계약일 ${formatKoreanDate(contractDate)}` : ""})`
             : "계약서에 적힌 전세 보증금"} />
-        <MarketPriceLookup
-          key={lookupKey}
-          initial={lookupInitial}
-          onSelect={(sel) => {
-            setHouseType(sel.type);
-            setLawdCd(sel.lawdCd);
-          }}
-          onEstimate={(manwon) => {
-            if (manwon !== null) {
-              setMarketPrice(String(manwon));
-              setMarketPriceFromTrades(true);
-            } else if (marketPriceFromTrades) {
-              // Clear an estimate left over from a previous lookup; keep values the user typed.
-              setMarketPrice("");
-              setMarketPriceFromTrades(false);
-            }
-          }}
-        />
         <AmountField id="marketPrice" label="매매시세" value={marketPrice}
-          onChange={(v) => {
-            setMarketPrice(v);
-            setMarketPriceFromTrades(false);
-          }}
-          badge={marketPriceFromTrades ? "실거래 추정값" : undefined}
-          hint="이 집을 지금 판다면 받을 수 있는 가격. 위에서 실거래가로 찾거나 직접 입력하세요." />
+          onChange={setMarketPrice}
+          hint="이 집을 지금 판다면 받을 수 있는 가격을 직접 입력하세요." />
         <AmountField id="mortgage" label="근저당 채권최고액 합계" value={mortgage}
           onChange={(v) => {
             setMortgage(v);
