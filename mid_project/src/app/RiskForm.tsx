@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type WheelEvent } from "react";
 import { evaluate, TITLE_ISSUES, type EngineInput, type TitleIssue } from "@/rules/engine";
 import type { ContractPrefill, FormPrefill, ReviewOk } from "@/agent/extract";
 import type { ChecklistContext } from "@/checklist/status";
@@ -17,6 +17,9 @@ const REALTY_PRICE_URL = "https://www.realtyprice.kr";
 
 type UnitText = { jibun: string; dong: string; ho: string };
 const EMPTY_UNIT: UnitText = { jibun: "", dong: "", ho: "" };
+
+// A focused number box changes its value when the page is scrolled over it; dropping focus leaves the value alone.
+const keepValueOnScroll = (e: WheelEvent<HTMLInputElement>) => e.currentTarget.blur();
 
 type Step = 1 | 2 | 3;
 const STEP_NAMES: Record<Step, string> = { 1: "등기부", 2: "계약서·금액", 3: "체크리스트" };
@@ -185,7 +188,7 @@ function Steps({ onRestart }: { onRestart: () => void }) {
             에서 &lsquo;공동주택 공시가격&rsquo;을 찾아 넣어 주세요.
           </p>
           <input id="publicPrice" type="number" inputMode="numeric" min={0} step={1} className={styles.input}
-            value={publicPrice} onChange={(e) => setPublicPrice(e.target.value)} />
+            value={publicPrice} onChange={(e) => setPublicPrice(e.target.value)} onWheel={keepValueOnScroll} />
         </div>
         <details className={styles.fixBox}>
           <summary className={styles.label}>등기부·계약서에서 읽은 값 고치기</summary>
@@ -348,7 +351,7 @@ function AmountField(props: {
       </label>
       <p className={styles.hint}>{props.hint}</p>
       <input id={props.id} type="number" inputMode="numeric" min={0} step={1} className={styles.input}
-        value={props.value} onChange={(e) => props.onChange(e.target.value)} />
+        value={props.value} onChange={(e) => props.onChange(e.target.value)} onWheel={keepValueOnScroll} />
     </div>
   );
 }
