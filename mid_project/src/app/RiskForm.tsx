@@ -178,18 +178,21 @@ function Steps({ onRestart }: { onRestart: () => void }) {
         <AmountField id="marketPrice" label="집값(매매가)" value={marketPrice}
           onChange={setMarketPrice}
           hint="이 집을 지금 판다면 받을 수 있는 가격이에요. 실거래가 공개시스템(rt.molit.go.kr)에서 같은 단지·면적의 최근 매매가를 찾아 넣어 주세요." />
-        <div className={styles.field}>
-          <label htmlFor="publicPrice" className={styles.label}>공시가격 (만원)</label>
-          <p className={styles.hint}>
-            빌라(연립·다세대)의 보증보험 판단에 필요해요.{" "}
-            <a href={REALTY_PRICE_URL} target="_blank" rel="noreferrer" className={styles.link}>
-              부동산공시가격알리미(realtyprice.kr)
-            </a>
-            에서 &lsquo;공동주택 공시가격&rsquo;을 찾아 넣어 주세요.
-          </p>
-          <input id="publicPrice" type="number" inputMode="numeric" min={0} step={1} className={styles.input}
-            value={publicPrice} onChange={(e) => setPublicPrice(e.target.value)} onWheel={keepValueOnScroll} />
-        </div>
+        {/* 공시가격 is used only for 빌라; hidden once the 등기부 says it is an 아파트 or 오피스텔. */}
+        {(houseType === null || houseType === "rowhouse") && (
+          <div className={styles.field}>
+            <label htmlFor="publicPrice" className={styles.label}>공시가격 (만원)</label>
+            <p className={styles.hint}>
+              빌라(연립·다세대)의 보증보험 판단에 필요해요.{" "}
+              <a href={REALTY_PRICE_URL} target="_blank" rel="noreferrer" className={styles.link}>
+                부동산공시가격알리미(realtyprice.kr)
+              </a>
+              에서 &lsquo;공동주택 공시가격&rsquo;을 찾아 넣어 주세요.
+            </p>
+            <input id="publicPrice" type="number" inputMode="numeric" min={0} step={1} className={styles.input}
+              value={publicPrice} onChange={(e) => setPublicPrice(e.target.value)} onWheel={keepValueOnScroll} />
+          </div>
+        )}
         <details className={styles.fixBox}>
           <summary className={styles.label}>등기부·계약서에서 읽은 값 고치기</summary>
           <p className={styles.hint}>AI가 읽은 값이 서류와 다를 때만 펼쳐서 고치세요. 서류를 올리지 않았다면 여기에 직접 넣을 수 있어요.</p>
